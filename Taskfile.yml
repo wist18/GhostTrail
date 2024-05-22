@@ -1,0 +1,95 @@
+version: '3'
+
+tasks:
+  # Task to source environment variables
+  source-env:
+    cmds:
+      - if [ -f ./env.sh ]; then source ./env.sh; else echo "Environment variables file (env.sh) not found. Please create it and set the required variables."; exit 1; fi
+    silent: true
+
+  get-llvm:
+    desc: "Clone the llvm-project repository"
+    cmds:
+      - task: source-env
+      - |
+        if [ -d "llvm-project" ]; then
+          echo "llvm-project directory already exists. Skipping clone."
+        else
+          git clone https://github.com/llvm/llvm-project.git
+        fi
+
+  config-llvm:
+    desc: "Configure the llvm-project repository"
+    cmds:
+      - task: source-env
+      - |
+        if [ -d "llvm-project" ]; then
+          cd llvm-project
+          mkdir -p build
+          cd build
+          cmake \
+            -DCMAKE_C_COMPILER="${CC}" \
+            -DCMAKE_CXX_COMPILER="${CXX}" \
+            -DLLVM_USE_LINKER="${LD}" \
+            -DLLVM_ENABLE_PROJECTS="clang;lld;compiler-rt" \
+            -DCMAKE_BUILD_TYPE="Release" \
+            -DLLVM_TARGETS_TO_BUILD=X86 \
+            -DLLVM_CCACHE_BUILD=ON \
+            -DLLVM_ENABLE_DUMP=ON \
+            -DBUILD_SHARED_LIBS=ON \
+            -G Ninja ../llvm
+          cd ../..
+        else
+          echo "llvm-project directory does not exist. Please run 'task get-llvm' first."
+        fi
+
+  build-llvm:
+    desc: "Build the llvm-project repository"
+    cmds:
+      - task: source-env
+      - |
+        if [ -d "llvm-project" ]; then
+          cd llvm-project/build
+          ninja
+          cd ../..
+        else
+          echo "llvm-project directory does not exist. Please run 'task get-llvm' and 'task configure-llvm' first."
+        fi
+
+  get-linux:
+    desc: "Clone the linux kernel repository"
+    cmds:
+      - task: source-env
+      - |
+        if [ -d "linux" ]; then
+          echo "linux directory already exists. Skipping clone."
+        else
+          git clone https://github.com/torvalds/linux.git
+        fi
+
+  config-linux:
+    desc: "Configure the linux kernel repository"
+    cmds:
+      - task: source-env
+      - |
+        if [ -d "linux" ]; then
+          cd linux
+          make clean
+          make defconfig
+          cd ..
+        else
+          echo "linux directory does not exist. Please run 'task get-linux' first."
+        fi
+
+  build-linux:
+    desc: "Build the linux kernel repository"
+    cmds:
+      - task: source-env
+      - |
+        if [ -d "linux" ]; then
+          cd linux
+          make -j$(nproc) LLVM="$LLVMPREFIX"
+          cd ..
+        else
+          echo "linux directory does not exist. Please run 'task get-linux' first."
+        fi
