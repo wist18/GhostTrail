@@ -1,16 +1,11 @@
 version: '3'
 
-tasks:
-  # Task to source environment variables
-  source-env:
-    cmds:
-      - if [ -f ./env.sh ]; then source ./env.sh; else echo "Environment variables file (env.sh) not found. Please create it and set the required variables."; exit 1; fi
-    silent: true
+dotenv: ['.env']
 
+tasks:
   get-llvm:
     desc: "Clone the llvm-project repository"
     cmds:
-      - task: source-env
       - |
         if [ -d "llvm-project" ]; then
           echo "llvm-project directory already exists. Skipping clone."
@@ -21,7 +16,6 @@ tasks:
   config-llvm:
     desc: "Configure the llvm-project repository"
     cmds:
-      - task: source-env
       - |
         if [ -d "llvm-project" ]; then
           cd llvm-project
@@ -46,7 +40,6 @@ tasks:
   build-llvm:
     desc: "Build the llvm-project repository"
     cmds:
-      - task: source-env
       - |
         if [ -d "llvm-project" ]; then
           cd llvm-project/build
@@ -59,22 +52,34 @@ tasks:
   get-linux:
     desc: "Clone the linux kernel repository"
     cmds:
-      - task: source-env
       - |
         if [ -d "linux" ]; then
           echo "linux directory already exists. Skipping clone."
         else
-          git clone https://github.com/torvalds/linux.git
+          git clone https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+          task set-linux-version
+        fi
+
+  set-linux-version:
+    desc: "Checkout the Linux version at ${LINUX_VERSION} in .env"
+    cmds:
+      - |
+        if [ -d "linux" ]; then
+          cd linux
+          git checkout "v${LINUX_VERSION}"
+          cd ..
+        else
+          echo "linux directory does not exist. Please run 'task get-linux' first."
         fi
 
   config-linux:
     desc: "Configure the linux kernel repository"
     cmds:
-      - task: source-env
       - |
         if [ -d "linux" ]; then
           cd linux
           make clean
+          make mrproper
           make defconfig
           cd ..
         else
@@ -84,12 +89,78 @@ tasks:
   build-linux:
     desc: "Build the linux kernel repository"
     cmds:
-      - task: source-env
       - |
         if [ -d "linux" ]; then
           cd linux
-          make -j$(nproc) LLVM="$LLVMPREFIX"
+          make CC=wllvm LLVM=$PWD/../llvm-project/build/bin/ -j$(nproc)
           cd ..
+        else
+          echo "linux directory does not exist. Please run 'task get-linux' first."
+        fi
+
+  gen-linux-bc:
+    desc: "Find all .bc files and move them to linux-<VERSION>-bc preserving directory structure"
+    cmds:
+      - |
+        if [ -d "linux" ]; then
+          BC_DIR="linux-${LINUX_VERSION}-bc"
+          mkdir -p $BC_DIR
+          #.bc files were created after the .o files at the compilation stage. 
+          find ./linux -name '*.o.bc' | while read -r file; do
+            # Remove the leading ./linux/ from the file path
+            relative_path="${file#./linux/}"
+            # Get the directory of the relative path
+            dir=$(dirname "$relative_path")
+            # Get the base name without the .o.bc extension
+            base=$(basename "$relative_path" .o.bc)
+            # Create the corresponding directory structure in the destination base
+            mkdir -p "$BC_DIR/$dir"
+            # Copy the file to the new location with the modified name
+            cp "$file" "$BC_DIR/$dir/${base}.bc"
+          done
+
+          # Find all files starting with a dot
+          find ./$BC_DIR -type f -name '.*' | while read -r file; do
+            # Get the directory of the current file
+            dir=$(dirname "$file")
+            # Get the base name of the file
+            base=$(basename "$file")
+            # Remove the leading dot
+            new_base="${base#.}"
+            # Construct the new file path
+            new_file="$dir/$new_base"
+            # Rename the file
+            mv "$file" "$new_file"
+          done
+        else
+          echo "linux directory does not exist. Please run 'task get-linux' first."
+        fi
+
+  gen-linux-ll:
+    desc: "Generate LLVM IR (.ll) files from .bc files and move them to linux-ll preserving directory structure"
+    cmds:
+      - |
+        if [ -d "linux" ]; then
+          BC_DIR="linux-${LINUX_VERSION}-bc"
+          LL_DIR="linux-${LINUX_VERSION}-ll"
+          if [ ! -d "$BC_DIR" ]; then
+            echo "Error: $BC_DIR directory does not exist. Please run 'task gen-linux-bc' first."
+            exit 1
+          fi
+
+          mkdir -p $LL_DIR
+          find ./$BC_DIR -name '*.bc' | while read -r file; do
+            # Remove the leading ./$BC_DIR/ from the file path
+            relative_path="${file#./$BC_DIR/}"
+            # Get the directory of the relative path
+            dir=$(dirname "$relative_path")
+            # Get the base name without the .bc extension
+            base=$(basename "$relative_path" .bc)
+            # Create the corresponding directory structure in the destination base
+            mkdir -p "$LL_DIR/$dir"
+            # Generate the LLVM IR (.ll) file and move it to the new location
+            llvm-dis "$file" -o "$LL_DIR/$dir/${base}.ll"
+          done
         else
           echo "linux directory does not exist. Please run 'task get-linux' first."
         fi
