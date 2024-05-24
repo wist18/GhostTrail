@@ -168,16 +168,16 @@ tasks:
         llvm-project/build/bin/clang++ -fPIC -shared -o passes/syncprimitives.so passes/SyncPrimitives.cpp `llvm-project/build/bin/llvm-config --cxxflags --ldflags --system-libs --libs core support`
 
   run-pass:
-    desc: "Run LLVM pass on every .bc file in linux-${LINUX_VERSION}-bc and save the results"
+    desc: "Run LLVM pass on every .ll file in linux-${LINUX_VERSION}-ll and save the results"
     cmds:
       - |
-        if [ -d "linux-${LINUX_VERSION}-bc" ]; then
-          BC_DIR="linux-${LINUX_VERSION}-bc"
+        if [ -d "linux-${LINUX_VERSION}-ll" ]; then
+          LL_DIR="linux-${LINUX_VERSION}-ll"
           OUTPUT_DIR="passes-out"
-          find ./$BC_DIR -name '*.bc' | while read -r file; do
-            relative_path="${file#./$BC_DIR/}"
+          find ./$LL_DIR -name '*.ll' | while read -r file; do
+            relative_path="${file#./$LL_DIR/}"
             dir=$(dirname "$relative_path")
-            base=$(basename "$relative_path" .bc)
+            base=$(basename "$relative_path" .ll)
             mkdir -p "$OUTPUT_DIR/$dir"
             output_file="$OUTPUT_DIR/$dir/$base.txt"
 
@@ -190,14 +190,17 @@ tasks:
             fi
 
             # Run the LLVM pass
-            llvm-project/build/bin/opt -debug-pass-manager -load-pass-plugin=./passes/syncprimitives.so -passes=sync-primitives -disable-output "$file" > "$output_file" 2>&1
+            timeout 0.5 llvm-project/build/bin/opt -debug-pass-manager -load-pass-plugin=./passes/syncprimitives.so -passes=sync-primitives -disable-output "$file" > "$output_file" 2>&1
 
             # Check if the process was killed due to OOM
             if [ $? -eq 137 ]; then
               echo "Process was killed (likely due to OOM). Exiting."
               exit 137
             fi
+
+            # Remove the .ll file after processing
+            rm -f "$file"
           done
         else
-          echo "linux-${LINUX_VERSION}-bc directory does not exist. Please run the tasks to generate .bc files first."
+          echo "linux-${LINUX_VERSION}-ll directory does not exist. Please run the tasks to generate .ll files first."
         fi
