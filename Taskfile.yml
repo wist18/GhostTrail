@@ -88,7 +88,7 @@ tasks:
       - |
         if [ -d "linux" ]; then
           cd linux
-          make CC=wllvm LLVM=$PWD/../llvm-project/build/bin/ -j$(nproc)
+          make CC=wllvm LLVM=$PWD/../llvm-project/build/bin/ CFLAGS="-g -O0" CXXFLAGS="-g -O0" -j8
           cd ..
         else
           echo "linux directory does not exist. Please run 'task get-linux' first."
@@ -165,23 +165,37 @@ tasks:
     desc: "Build the LLVM passes"
     cmds:
       - |
-        llvm-project/build/bin/clang++ -fPIC -shared -o passes/mypass.so passes/MyPass.cpp `llvm-project/build/bin/llvm-config --cxxflags --ldflags --system-libs --libs core support`
+        llvm-project/build/bin/clang++ -fPIC -shared -o passes/syncprimitives.so passes/SyncPrimitives.cpp `llvm-project/build/bin/llvm-config --cxxflags --ldflags --system-libs --libs core support`
 
   run-pass:
-    desc: "Run LLVM pass on every .ll file in linux-${LINUX_VERSION}-ll and save the results"
+    desc: "Run LLVM pass on every .bc file in linux-${LINUX_VERSION}-bc and save the results"
     cmds:
       - |
-        if [ -d "linux-${LINUX_VERSION}-ll" ]; then
-          LL_DIR="linux-${LINUX_VERSION}-ll"
+        if [ -d "linux-${LINUX_VERSION}-bc" ]; then
+          BC_DIR="linux-${LINUX_VERSION}-bc"
           OUTPUT_DIR="passes-out"
-          find ./$LL_DIR -name '*.ll' | while read -r file; do
-            relative_path="${file#./$LL_DIR/}"
+          find ./$BC_DIR -name '*.bc' | while read -r file; do
+            relative_path="${file#./$BC_DIR/}"
             dir=$(dirname "$relative_path")
-            base=$(basename "$relative_path" .ll)
+            base=$(basename "$relative_path" .bc)
             mkdir -p "$OUTPUT_DIR/$dir"
             output_file="$OUTPUT_DIR/$dir/$base.txt"
-            llvm-project/build/bin/opt -debug-pass-manager -load-pass-plugin=./passes/mypass.so -passes=my-pass -disable-output "$file" > "$output_file" 2>&1
+
+            # Monitor memory before running the pass
+            free -h
+
+            # Run the LLVM pass
+            llvm-project/build/bin/opt -debug-pass-manager -load-pass-plugin=./passes/syncprimitives.so -passes=sync-primitives -disable-output "$file" > "$output_file" 2>&1
+
+            # Check if the process was killed due to OOM
+            if [ $? -eq 137 ]; then
+              echo "Process was killed (likely due to OOM). Exiting."
+              exit 137
+            fi
+
+            # Monitor memory after running the pass
+            free -h
           done
         else
-          echo "linux-${LINUX_VERSION}-ll directory does not exist. Please run the tasks to generate .ll files first."
+          echo "linux-${LINUX_VERSION}-bc directory does not exist. Please run the tasks to generate .bc files first."
         fi
