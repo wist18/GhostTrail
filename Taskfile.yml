@@ -57,12 +57,12 @@ tasks:
         fi
 
   set-linux-version:
-    desc: "Checkout the Linux version at ${LINUX_VERSION} in .env"
+    desc: "Checkout the Linux version at v${LINUX_VERSION} in .env"
     cmds:
       - |
         if [ -d "linux" ]; then
           cd linux
-          git checkout $LINUX_VERSION
+          git checkout v$LINUX_VERSION
           cd ..
         else
           echo "linux directory does not exist. Please run 'task get-linux' first."
@@ -88,7 +88,7 @@ tasks:
       - |
         if [ -d "linux" ]; then
           cd linux
-          make CC=wllvm LLVM=$PWD/../llvm-project/build/bin/ CFLAGS="-g -O0" CXXFLAGS="-g -O0" -j8
+          make -j8 CC=wllvm LLVM=$PWD/../llvm-project/build/bin/ KCFLAGS="-g"
           cd ..
         else
           echo "linux directory does not exist. Please run 'task get-linux' first."

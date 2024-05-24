@@ -27,6 +27,8 @@ std::unordered_map<Op, std::vector<StoreInstInfo>> storeInstructions;
 std::unordered_map<std::string, Op> callInstbyType = {
     {"pthread_mutex_lock", Op::LOCK},
     {"pthread_mutex_unlock", Op::UNLOCK},
+    {"mutex_lock", Op::LOCK},
+    {"mutex_unlock", Op::UNLOCK},
     {"free", Op::FREE},
     {"list_del", Op::LISTDEL}
 };
@@ -69,6 +71,7 @@ bool dominates(Instruction *firstCall, Instruction *secondCall, Module &M, Modul
 }
 
 bool postdominates(Instruction *firstCall, Instruction *secondCall, Module &M, ModuleAnalysisManager &MAM) {
+    return false;
     auto *firstBB = firstCall->getParent();
     auto *secondBB = secondCall->getParent();
     auto *firstFunc = firstCall->getFunction();
@@ -702,17 +705,17 @@ llvm::PassPluginLibraryInfo getSyncPrimitivesPluginInfo() {
                   }
                   return false;
                 });
-
+            
              // Register the pass for LTO (Full Link Time Optimization)
             PB.registerOptimizerLastEPCallback(
                 [](ModulePassManager &MPM, OptimizationLevel Level) {
                   MPM.addPass(SyncPrimitivesPass());
                 });
-
+            
             // Register the pass for ThinLTO (Thin Link Time Optimization)
             PB.registerPipelineStartEPCallback(
                 [](ModulePassManager &MPM, OptimizationLevel Level) {
-                  MPM.addPass(SyncPrimitivesPass());
+                  //MPM.addPass(SyncPrimitivesPass());
                 });
           }};
 }
