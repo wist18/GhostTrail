@@ -181,8 +181,13 @@ tasks:
             mkdir -p "$OUTPUT_DIR/$dir"
             output_file="$OUTPUT_DIR/$dir/$base.txt"
 
-            # Monitor memory before running the pass
-            free -h
+            # Check if output file already exists
+            if [ -f "$output_file" ]; then
+              echo "Skipping $file, output already exists at $output_file"
+              continue
+            else
+              echo "[BUILDING] $output_file"
+            fi
 
             # Run the LLVM pass
             llvm-project/build/bin/opt -debug-pass-manager -load-pass-plugin=./passes/syncprimitives.so -passes=sync-primitives -disable-output "$file" > "$output_file" 2>&1
@@ -192,9 +197,6 @@ tasks:
               echo "Process was killed (likely due to OOM). Exiting."
               exit 137
             fi
-
-            # Monitor memory after running the pass
-            free -h
           done
         else
           echo "linux-${LINUX_VERSION}-bc directory does not exist. Please run the tasks to generate .bc files first."
