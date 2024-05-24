@@ -22,13 +22,9 @@ tasks:
           mkdir -p build
           cd build
           cmake \
-            -DCMAKE_C_COMPILER="${CC}" \
-            -DCMAKE_CXX_COMPILER="${CXX}" \
-            -DLLVM_USE_LINKER="${LD}" \
             -DLLVM_ENABLE_PROJECTS="clang;lld;compiler-rt" \
             -DCMAKE_BUILD_TYPE="Release" \
             -DLLVM_TARGETS_TO_BUILD=X86 \
-            -DLLVM_CCACHE_BUILD=ON \
             -DLLVM_ENABLE_DUMP=ON \
             -DBUILD_SHARED_LIBS=ON \
             -G Ninja ../llvm
@@ -66,7 +62,7 @@ tasks:
       - |
         if [ -d "linux" ]; then
           cd linux
-          git checkout "v${LINUX_VERSION}"
+          git checkout $LINUX_VERSION
           cd ..
         else
           echo "linux directory does not exist. Please run 'task get-linux' first."
@@ -80,7 +76,7 @@ tasks:
           cd linux
           make clean
           make mrproper
-          make defconfig
+          make allyesconfig
           cd ..
         else
           echo "linux directory does not exist. Please run 'task get-linux' first."
@@ -159,8 +155,33 @@ tasks:
             # Create the corresponding directory structure in the destination base
             mkdir -p "$LL_DIR/$dir"
             # Generate the LLVM IR (.ll) file and move it to the new location
-            llvm-dis "$file" -o "$LL_DIR/$dir/${base}.ll"
+            llvm-project/build/bin/llvm-dis "$file" -o "$LL_DIR/$dir/${base}.ll"
           done
         else
           echo "linux directory does not exist. Please run 'task get-linux' first."
+        fi
+
+  build-pass:
+    desc: "Build the LLVM passes"
+    cmds:
+      - |
+        llvm-project/build/bin/clang++ -fPIC -shared -o passes/mypass.so passes/MyPass.cpp `llvm-project/build/bin/llvm-config --cxxflags --ldflags --system-libs --libs core support`
+
+  run-pass:
+    desc: "Run LLVM pass on every .ll file in linux-${LINUX_VERSION}-ll and save the results"
+    cmds:
+      - |
+        if [ -d "linux-${LINUX_VERSION}-ll" ]; then
+          LL_DIR="linux-${LINUX_VERSION}-ll"
+          OUTPUT_DIR="passes-out"
+          find ./$LL_DIR -name '*.ll' | while read -r file; do
+            relative_path="${file#./$LL_DIR/}"
+            dir=$(dirname "$relative_path")
+            base=$(basename "$relative_path" .ll)
+            mkdir -p "$OUTPUT_DIR/$dir"
+            output_file="$OUTPUT_DIR/$dir/$base.txt"
+            llvm-project/build/bin/opt -debug-pass-manager -load-pass-plugin=./passes/mypass.so -passes=my-pass -disable-output "$file" > "$output_file" 2>&1
+          done
+        else
+          echo "linux-${LINUX_VERSION}-ll directory does not exist. Please run the tasks to generate .ll files first."
         fi
