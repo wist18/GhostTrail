@@ -10,24 +10,12 @@
 #ifndef LLVM_TRANSFORMS_UTILS_SYNCPRIMITIVES_H
 #define LLVM_TRANSFORMS_UTILS_SYNCPRIMITIVES_H
 
-#include "llvm/IR/CFG.h"  // For utility functions related to control flow
 #include "llvm/IR/PassManager.h" // new PassManager(PM)
-#include "llvm/IR/LLVMContext.h"
-#include <llvm/IR/DerivedTypes.h>  // For PointerType
-#include <llvm/IR/Function.h>
-#include <llvm/IR/Type.h>
 #include "llvm/IR/GlobalVariable.h"
-#include "SyncPrimitives.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Analysis/PostDominators.h"
-#include "llvm/Analysis/CallGraph.h"
-#include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/MemoryDependenceAnalysis.h"
-#include "llvm/Analysis/MemorySSA.h"
-#include "llvm/Analysis/MemorySSAUpdater.h"
-#include "llvm/Analysis/PostDominators.h"
-#include "llvm/Support/FormatVariadic.h"
+
 #include <map>
 #include <unordered_map>
 #include <set>
@@ -96,32 +84,24 @@ struct StoreInstInfo {
             typesStr += "\"" + type + "\" ";
         }
         errs() << llvm::formatv("\"{0}_operand_scope\": \"{1}\", \"{0}_operand_type_list\": [ {2}]",
-                    report_class,
-                    operand_scope,
-                    typesStr);
+                report_class,
+                operand_scope,
+                typesStr);
         errs() << ", ";
-        /*
 
-        // TODO
+        std::string func_position = "(no-debug-info)";
 
         if (store_inst) {
-            llvm::DebugLoc debugLoc = store_inst->getDebugLoc();   // ERROR HERE
-            std::string func_position;
-            
-            if (debugLoc) {
-                if (auto *scope = llvm::dyn_cast<llvm::DIScope>(debugLoc->getScope())) {
-                    func_position = scope->getFilename().str() + " +" + std::to_string(debugLoc.getLine());
-                } else {
-                    func_position = "(invalid-debug-scope)";
-                }
-            } else {
-                func_position = "(no-debug-info)";
-            }
+            auto debugLoc = store_inst->getDebugLoc();
 
-            llvm::errs() << llvm::formatv("\"{0}_position\": \"{1}\"", 
-                                        report_class,
-                                        func_position) << "\n";
-        }*/
+            if (debugLoc && debugLoc->getScope() && debugLoc->getLine()) {
+                func_position = debugLoc->getFilename().str() + " +" + std::to_string(debugLoc->getLine());
+            }
+        }
+
+        errs() << llvm::formatv("\"{0}_position\": \"{1}\"", 
+                report_class,
+                func_position);
     }    
 
     bool operator==(const StoreInstInfo& other) const {
@@ -161,64 +141,38 @@ struct CallInstInfo {
         errs() << ", ";
 
         std::string func_name = "unnamed_function";
+        std::string func_position = "(no-debug-info)";
 
-        if (!call_path.empty() && call_path.back()) {
+        if (!call_path.empty()) {
             
-            /*
+            if (call_path.back()->isIndirectCall() && call_path.back()->getCalledOperand()) {
+                auto *calledOperand = dyn_cast<LoadInst>(call_path.back()->getCalledOperand());
 
-            // TODO
-
-            auto *callOperand = call_path.back()->getCalledOperand();
-
-            
-            if (callOperand) {
-                if (llvm::Value* value = dyn_cast<llvm::Value>(callOperand)) {
-                    if (auto *loadInst = dyn_cast<llvm::LoadInst>(value)) {
-                        if (loadInst->getPointerOperand()->hasName()) {
-                            func_name = loadInst->getPointerOperand()->getName().str();
-                        }
-                    }
+                if (calledOperand && calledOperand->getPointerOperand() && calledOperand->getPointerOperand()->hasName()) {
+                    func_name = calledOperand->getPointerOperand()->getName().str();
+                }
+                
+            } else if (!call_path.back()->isIndirectCall() && call_path.back()->getCalledFunction()) {
+                if (call_path.back()->getCalledFunction()->hasName()) {
+                    func_name = call_path.back()->getCalledFunction()->getName().str();
                 }
             }
-
-            auto *calledFunction = call_path.back()->getCalledFunction();
-
-            if (calledFunction && calledFunction->hasName()) {
-                func_name = calledFunction->getName().str();
-            }
-
-            */
             
-            errs() << llvm::formatv("\"{0}_func\": \"{1}\"", 
-                        REPORT_CLASS_GUARDED_FREE,
-                        func_name);
-            errs() << ", ";
+            auto debugLoc = call_path.back()->getDebugLoc();
+        
+            if (debugLoc && debugLoc->getScope() && debugLoc->getLine()) {
+                func_position = debugLoc->getFilename().str() + " +" + std::to_string(debugLoc->getLine());
+            }
         }
 
+        errs() << llvm::formatv("\"{0}_func\": \"{1}\"", 
+                    REPORT_CLASS_GUARDED_FREE,
+                    func_name);
+        errs() << ", ";
 
-        
-        /*
-
-        // TODO
-
-        if (call_path.back()) {
-            llvm::DebugLoc debugLoc = call_path.back()->getDebugLoc();  // ERROR HERE
-            std::string func_position;
-            
-            if (debugLoc) {
-                if (auto *scope = llvm::dyn_cast<llvm::DIScope>(debugLoc->getScope())) {
-                    func_position = scope->getFilename().str() + " +" + std::to_string(debugLoc.getLine());
-                } else {
-                    func_position = "(invalid-debug-scope)";
-                }
-            } else {
-                func_position = "(no-debug-info)";
-            }
-
-            llvm::errs() << llvm::formatv("\"{0}_position\": \"{1}\"", 
-                                        REPORT_CLASS_GUARDED_FREE,
-                                        func_position) << "\n";
-        }*/
+        errs() << llvm::formatv("\"{0}_position\": \"{1}\"", 
+                REPORT_CLASS_GUARDED_FREE,
+                func_position);
     }    
 
     bool operator==(const CallInstInfo& other) const {

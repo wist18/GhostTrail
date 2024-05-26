@@ -34,121 +34,66 @@ std::unordered_map<std::string, Op> callInstbyType = {
 // This function examines whether the first call dominates the second call
 // within the program. 
 
-bool dominates(llvm::Instruction *firstCall, llvm::Instruction *secondCall, llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
-    
-    // Check if the instruction pointers are null
-    if (!firstCall || !secondCall) {
+bool dominates(Instruction *firstCall, Instruction *secondCall, Module &M, ModuleAnalysisManager &MAM) {
+    if (!firstCall || !secondCall || firstCall == secondCall) {
         return false;
     }
 
-    // Get the parent basic block for each instruction and check if they are null
-    llvm::BasicBlock *firstBB = firstCall->getParent();
-    llvm::BasicBlock *secondBB = secondCall->getParent();
+    auto *firstBB = firstCall->getParent();
+    auto *secondBB = secondCall->getParent();
 
     if (!firstBB || !secondBB) {
         return false;
     }
 
-    // Try to get the function for each instruction
-    llvm::Function *firstFunc = firstBB->getParent();
-    llvm::Function *secondFunc = secondBB->getParent();
+    auto *firstFunc = firstBB->getParent();
+    auto *secondFunc = secondBB->getParent();
 
-    // Check if the function pointers are null
-    if (!firstFunc || !secondFunc) {
+    if (!firstFunc || !secondFunc || firstFunc != secondFunc) {
         return false;
     }
 
-    // Check if the instructions belong to different functions
-    if (firstFunc != secondFunc) {
-        return false;
-    }
+    auto &DT = MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager().getResult<DominatorTreeAnalysis>(*firstFunc);
 
-    // Get the dominator tree analysis for the function
-    auto *FAMProxyPtr = MAM.getCachedResult<FunctionAnalysisManagerModuleProxy>(M);
-    if (!FAMProxyPtr) {
-        return false;
-    }
-
-    auto &FAMProxy = *FAMProxyPtr;
-    auto &FAM = FAMProxy.getManager();
-
-    // Assuming 'firstFunc' is a valid pointer to a Function
-    if (!firstFunc) {
-        return false;
-    }
-
-    auto &DT = FAM.getResult<llvm::DominatorTreeAnalysis>(*firstFunc);
-
-    // Check if the instructions are the same
-    if (firstCall == secondCall) {
-        llvm::errs() << "Error: Instructions are the same.\n";
-        return false;
-    }
-
-    // Check if the instructions are in the same basic block
     if (firstBB == secondBB) {
-        llvm::errs() << "Checking domination within the same basic block.\n";
         return DT.dominates(firstCall, secondCall);
     }
-    
-    /*
 
-    // TODO
+    auto *terminator = firstBB->getTerminator();
 
-    // Check if the first basic block's terminator instruction is a branch instruction
-    llvm::Instruction *terminator = firstBB->getTerminator();
     if (terminator) {
         if (llvm::BranchInst *BI = llvm::dyn_cast<llvm::BranchInst>(terminator)) {
-            for (unsigned i = 0; i < BI->getNumSuccessors(); ++i) {
+            for (unsigned i = 0; i < BI->getNumSuccessors(); i++) {
                 if (BI->getSuccessor(i) && DT.dominates(BI->getSuccessor(i), secondBB)) {
-                    llvm::errs() << "Instruction in successor basic block dominates.\n";
                     return true;
                 }
             }
         }
-    }*/
-
-    llvm::errs() << "Checking domination between different basic blocks.\n";
+    }
+    
     return DT.dominates(firstBB, secondBB);
 }
 
 bool postdominates(Instruction *firstCall, Instruction *secondCall, Module &M, ModuleAnalysisManager &MAM) {
-
-    //TODO
-
-    return false;
-
-    // Check if the instruction pointers are null
-    if (!firstCall || !secondCall) {
+    if (!firstCall || !secondCall || firstCall == secondCall) {
         return false;
     }
 
-    // Get the parent basic block for each instruction and check if they are null
-    llvm::BasicBlock *firstBB = firstCall->getParent();
-    llvm::BasicBlock *secondBB = secondCall->getParent();
+    auto *firstBB = firstCall->getParent();
+    auto *secondBB = secondCall->getParent();
 
     if (!firstBB || !secondBB) {
         return false;
     }
 
-    // Try to get the function for each instruction
-    llvm::Function *firstFunc = firstBB->getParent();
-    llvm::Function *secondFunc = secondBB->getParent();
+    auto *firstFunc = firstBB->getParent();
+    auto *secondFunc = secondBB->getParent();
 
-    // Check if the function pointers are null
-    if (!firstFunc || !secondFunc) {
+    if (!firstFunc || !secondFunc || firstFunc != secondFunc) {
         return false;
     }
 
     auto &PDT = MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager().getResult<PostDominatorTreeAnalysis>(*firstFunc);
-
-    if (firstCall == secondCall) {
-        return false;
-    }
-   
-    if (firstFunc != secondFunc) {
-        return false;
-    }
 
     if (firstBB == secondBB) {
         return PDT.dominates(firstCall, secondCall);
@@ -279,26 +224,22 @@ std::string getOperandScope(Value* operandValue) {
 std::string getCallPathString(std::vector<CallInst*> call_path) {
     std::string call_path_string = "";
     for (const auto& call_inst : call_path) {
+        if (call_path_string != "") {
+            call_path_string += " -> ";
+        } 
         
+        if (call_inst->getFunction() && call_inst->getFunction()->hasName()) {
+            call_path_string += "@" + call_inst->getFunction()->getName().str() + "():";
+        } else {
+            call_path_string += "@undef_func():";
+        }
 
-        if (call_inst->getFunction()) {
-            if (call_path_string != "") {
-                call_path_string += " -> ";
-            } 
+        auto debugLoc = call_inst->getDebugLoc();
 
-            if(call_inst->getFunction()->hasName()) {
-                call_path_string += "@" + call_inst->getFunction()->getName().str() + "():";
-            } else {
-                call_path_string += "@undef_func():";
-            }
-
-            auto debugLoc = call_inst->getDebugLoc();
-
-            if (debugLoc) {
-                call_path_string += std::to_string(debugLoc->getLine());
-            } else {
-                call_path_string += "(no-debug-info)";
-            }
+        if (debugLoc && debugLoc->getScope() && debugLoc->getLine()) {
+            call_path_string += std::to_string(debugLoc->getLine());
+        } else {
+            call_path_string += "(no-debug-info)";
         }
     }
 
@@ -365,45 +306,53 @@ std::vector<std::string> getOperandTypes(Value* operandValue) {
 
 
 void handleDirectCallInst(CallInst* callInst, std::vector<CallInst*>call_path) {
-    CallInstInfo info;
-    llvm::StringRef calledFunctionName = "undef_func"; 
     if (callInst && callInst->getCalledFunction() && callInst->getCalledFunction()->hasName()) {
-        calledFunctionName = callInst->getCalledFunction()->getName();
-    };
-    bool isSupported = callInstbyType.find(calledFunctionName.str()) != callInstbyType.end();
-    info.call_path = call_path;
-    info.call_inst_type = isSupported ? callInstbyType[calledFunctionName.str()] : Op::UNKNOWN;
+        llvm::StringRef calledFunctionName = callInst->getCalledFunction()->getName();
+        bool isSupported = callInstbyType.find(calledFunctionName.str()) != callInstbyType.end();
 
-    if (info.call_inst_type == Op::UNKNOWN && calledFunctionName.contains("mutex_lock")) {
-        info.call_inst_type = Op::LOCK;
-    }
+        CallInstInfo info;
+        
+        info.call_inst_type = isSupported ? callInstbyType[calledFunctionName.str()] : Op::UNKNOWN;
 
-    if (info.call_inst_type == Op::UNKNOWN && calledFunctionName.contains("mutex_unlock")) {
-        info.call_inst_type = Op::UNLOCK;
-    }
+        if (calledFunctionName.contains("mutex_lock")) {
+            info.call_inst_type = Op::LOCK;
+        }
 
-    info.call_path_string = getCallPathString(call_path);
-    if (callInst->arg_size() > 0) {
-        auto *calledFunctionFirstArg = callInst->getArgOperand(0);
-        if (calledFunctionFirstArg) {
-            info.operand_scope = getOperandScope(calledFunctionFirstArg);
-            info.operand_type_list = getOperandTypes(calledFunctionFirstArg);
+        if (calledFunctionName.contains("mutex_unlock")) {
+            info.call_inst_type = Op::UNLOCK;
+        }
+
+        if (info.call_inst_type != Op::UNKNOWN) {
+
+            if (callInst->getCalledFunction()->arg_size() > 0) {
+                auto *calledFunctionFirstArg = callInst->getCalledFunction()->arg_begin();
+                info.operand_scope = getOperandScope(callInst->getArgOperand(0));
+                info.operand_type_list = getOperandTypes(calledFunctionFirstArg);
+            }
+            
+            info.call_path = call_path;
+            info.call_path_string = getCallPathString(call_path);
+            callInstructions[info.call_inst_type].emplace_back(info);
         }
     }
-    
-    callInstructions[info.call_inst_type].emplace_back(info);
 }
 
 void handleInirectCallInst(CallInst* callInst, std::vector<CallInst*>call_path) {
-    CallInstInfo info;
-    auto *calledOperand = dyn_cast<LoadInst>(callInst->getCalledOperand());
-    if (calledOperand && calledOperand->getPointerOperand()->getType()->isPointerTy()) {
-        info.call_path = call_path;
-        info.call_inst_type = Op::FPTR_CALL;
-        info.call_path_string = getCallPathString(call_path);
-        info.operand_scope = getOperandScope(calledOperand->getPointerOperand());
-        info.operand_type_list = getOperandTypes(calledOperand->getPointerOperand());
-        callInstructions[info.call_inst_type].emplace_back(info);
+    if (callInst && callInst->getCalledOperand()) {
+        CallInstInfo info;
+
+        if (auto *calledOperand = dyn_cast<LoadInst>(callInst->getCalledOperand())) {
+            if (calledOperand->getPointerOperand()) {
+                if (calledOperand->getPointerOperand()->getType()->isPointerTy()) {
+                    info.call_inst_type = Op::FPTR_CALL;
+                    info.call_path = call_path;
+                    info.call_path_string = getCallPathString(call_path);
+                    info.operand_scope = getOperandScope(calledOperand->getPointerOperand());
+                    info.operand_type_list = getOperandTypes(calledOperand->getPointerOperand());
+                    callInstructions[info.call_inst_type].emplace_back(info);
+                }
+            }
+        }
     }
 }
 
@@ -517,12 +466,8 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
 
                             criticalRegion.lock_sync = lock_sync;
                             criticalRegion.unlock_sync = unlock_sync;
-                            criticalRegion.target_func_ret_type = "undef_ret_type";
-
-                            if (lock_call_path_inst->getFunction()) {
-                                criticalRegion.target_func_ret_type = solveTypeName(lock_call_path_inst->getFunction()->getReturnType()).str();
-                                criticalRegion.target_func = (lock_call_path_inst->getFunction()->hasName()) ? lock_call_path_inst->getFunction()->getName().str() : "undef_func";
-                            }
+                            criticalRegion.target_func_ret_type = solveTypeName(lock_call_path_inst->getFunction()->getReturnType()).str();
+                            criticalRegion.target_func = lock_call_path_inst->getFunction()->getName().str();
 
                             for (const auto& free : callInstructions[Op::FREE]) {
                                 for (const auto& free_call_path_inst : free.call_path) {
@@ -567,8 +512,11 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                                             if (dominatesUnlock) {
                                                                 FreeGadget freeGadget;
                                                                 freeGadget.report_class = REPORT_CLASS_GUARDED_FREE_NULL; 
+                                                                std::string update_position = "(no-debug-info)";
                                                                 auto debugLoc = update.store_inst->getDebugLoc();
-                                                                std::string update_position = debugLoc ? (debugLoc->getFilename().str() + " +" + std::to_string(debugLoc->getLine())) : "(no-debug-info)";
+                                                                if (debugLoc && debugLoc->getScope() && debugLoc->getLine()) {
+                                                                    update_position = debugLoc->getFilename().str() + " +" + std::to_string(debugLoc->getLine());
+                                                                }
                                                                 freeGadget.additional_report_info = llvm::formatv("\"{0}_call_path\": {1}, \"{0}_position\": {2}", "update_null", update.call_path_string, update_position);
                                                                 freeGadget.callInstInfo = free;
                                                                 criticalRegion.free_gadgets.emplace_back(freeGadget);
@@ -611,10 +559,12 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                                             if (dominatesUnlock) {
                                                                 FreeGadget freeGadget;
                                                                 freeGadget.report_class = REPORT_CLASS_GUARDED_FREE_VAL;
+                                                                std::string update_position = "(no-debug-info)";
                                                                 auto debugLoc = update.store_inst->getDebugLoc();
-                                                                std::string update_position = debugLoc ? (debugLoc->getFilename().str() + " +" + std::to_string(debugLoc->getLine())) : "(no-debug-info)";
+                                                                if (debugLoc && debugLoc->getScope() && debugLoc->getLine()) {
+                                                                    update_position = debugLoc->getFilename().str() + " +" + std::to_string(debugLoc->getLine());
+                                                                }
                                                                 freeGadget.additional_report_info = llvm::formatv("\"{0}_call_path\": {1}, \"{0}_position\": {2}", "update_val", update.call_path_string, update_position);
-
                                                                 freeGadget.callInstInfo = free;
                                                                 criticalRegion.free_gadgets.emplace_back(freeGadget);
                                                                 reportedStoreInstructions[Op::UPDATE_VAL].emplace_back(update);
@@ -650,10 +600,12 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                                             if (dominatesUnlock) {
                                                                 FreeGadget freeGadget;
                                                                 freeGadget.report_class = REPORT_CALSS_GUARDED_FREE_LIST_DEL; 
+                                                                std::string update_position = "(no-debug-info)";
                                                                 auto debugLoc = update.call_path.back()->getDebugLoc();
-                                                                std::string update_position = debugLoc ? (debugLoc->getFilename().str() + " +" + std::to_string(debugLoc->getLine())) : "(no-debug-info)";
+                                                                if (debugLoc && debugLoc->getScope() && debugLoc->getLine()) {
+                                                                    update_position = debugLoc->getFilename().str() + " +" + std::to_string(debugLoc->getLine());
+                                                                }
                                                                 freeGadget.additional_report_info = llvm::formatv("\"{0}_call_path\": {1}, \"{0}_position\": {2}", "list_del", update.call_path_string, update_position);
-
                                                                 freeGadget.callInstInfo = free;
                                                                 criticalRegion.free_gadgets.emplace_back(freeGadget);
                                                                 reportedCallInstructions[Op::LISTDEL].emplace_back(update);
@@ -722,7 +674,7 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
             break;
         } else {
             for (const auto& pair : reportedCallInstructions) {
-                if (callInstructions.find(pair.first) != callInstructions.end()) {  // Check if key from A is not found in B
+                if (callInstructions.find(pair.first) != callInstructions.end()) {
                     auto &diff = callInstructions[pair.first];
 
                     for (const auto &call : pair.second) {
@@ -733,7 +685,7 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
             }
 
             for (const auto& pair : reportedStoreInstructions) {
-                if (storeInstructions.find(pair.first) != storeInstructions.end()) {  // Check if key from A is not found in B
+                if (storeInstructions.find(pair.first) != storeInstructions.end()) {
                     auto &diff = storeInstructions[pair.first];
 
                     for (const auto &call : pair.second) {
@@ -756,17 +708,18 @@ void printCriticalRegionsInfo() {
 
 PreservedAnalyses SyncPrimitivesPass::run(Module &M, ModuleAnalysisManager &MAM) {
     errs() << "[BUILDING] Critical Regions...\n";
+    
     for (Function &F : M) {
         for (BasicBlock &BB : F) {
             for (Instruction &I : BB) {
                 handleInst(&I);
             }
         }
-
         
         buildCriticalRegions(M, MAM);
-        printCriticalRegionsInfo();
     }
+
+    printCriticalRegionsInfo();
     errs() << "[!] Build completed!\n";
 
     return PreservedAnalyses::all();
@@ -785,13 +738,13 @@ llvm::PassPluginLibraryInfo getSyncPrimitivesPluginInfo() {
                   }
                   return false;
                 });
-            
+
              // Register the pass for LTO (Full Link Time Optimization)
             PB.registerOptimizerLastEPCallback(
                 [](ModulePassManager &MPM, OptimizationLevel Level) {
                   MPM.addPass(SyncPrimitivesPass());
                 });
-            
+
             // Register the pass for ThinLTO (Thin Link Time Optimization)
             PB.registerPipelineStartEPCallback(
                 [](ModulePassManager &MPM, OptimizationLevel Level) {
