@@ -223,23 +223,56 @@ std::string getOperandScope(Value* operandValue) {
 
 std::string getCallPathString(std::vector<CallInst*> call_path) {
     std::string call_path_string = "";
-    for (const auto& call_inst : call_path) {
-        if (call_path_string != "") {
-            call_path_string += " -> ";
-        } 
-        
-        if (call_inst->getFunction() && call_inst->getFunction()->hasName()) {
-            call_path_string += "@" + call_inst->getFunction()->getName().str() + "():";
-        } else {
-            call_path_string += "@undef_func():";
-        }
 
-        auto debugLoc = call_inst->getDebugLoc();
+    if (!call_path.empty()) {
 
-        if (debugLoc && debugLoc->getScope() && debugLoc->getLine()) {
-            call_path_string += std::to_string(debugLoc->getLine());
+        if (call_path.back()->getDebugLoc() && call_path.back()->getDebugLoc().getInlinedAt()) {
+            auto debugLoc = call_path.back()->getDebugLoc();
+
+            while (debugLoc) {
+
+                if (debugLoc->getLine()) {
+                    call_path_string = std::to_string(debugLoc->getLine()) + call_path_string;
+                } else {
+                    call_path_string = "(no-debug-info)" + call_path_string;
+                }
+
+                if (debugLoc->getScope()) {
+                    if (!debugLoc->getScope()->getName().empty()) {
+                        call_path_string = "@" + debugLoc->getScope()->getName().str() + "():" + call_path_string;
+                    } else {
+                        call_path_string = "@undef_func():" + call_path_string;
+                    }
+                } else {
+                    call_path_string = "(no-scope-info)" + call_path_string;
+                }
+
+                if (debugLoc.getInlinedAt()) {
+                    call_path_string = " -> " + call_path_string;
+                }
+
+                debugLoc = debugLoc.getInlinedAt();
+            }
         } else {
-            call_path_string += "(no-debug-info)";
+            for (const auto& call_inst : call_path) {
+                if (call_path_string != "") {
+                    call_path_string += " -> ";
+                } 
+                
+                if (call_inst->getFunction() && call_inst->getFunction()->hasName()) {
+                    call_path_string += "@" + call_inst->getFunction()->getName().str() + "():";
+                } else {
+                    call_path_string += "@undef_func():";
+                }
+
+                auto debugLoc = call_inst->getDebugLoc();
+
+                if (debugLoc && debugLoc->getScope() && debugLoc->getLine()) {
+                    call_path_string += std::to_string(debugLoc->getLine());
+                } else {
+                    call_path_string += "(no-debug-info)";
+                }
+            }
         }
     }
 
