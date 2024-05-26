@@ -35,9 +35,7 @@ std::unordered_map<std::string, Op> callInstbyType = {
 // within the program. 
 
 bool dominates(llvm::Instruction *firstCall, llvm::Instruction *secondCall, llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
-
-
-    return true;
+    
     // Check if the instruction pointers are null
     if (!firstCall || !secondCall) {
         return false;
