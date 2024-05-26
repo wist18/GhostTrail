@@ -5,3 +5,5 @@
 /passes-out/
 
 passes/*.so
+passes/SyncPrimitives.cpp
+passes/SyncPrimitives.h
