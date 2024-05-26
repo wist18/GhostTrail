@@ -16,6 +16,6 @@ while true; do
     exit 137
   else
     echo "Some files are still unprocessed. Rerunning the task..."
-    sleep 0.3  # Delay before rerunning
+    sleep 0.5  # Delay before rerunning
   fi
 done

@@ -100,12 +100,28 @@ struct StoreInstInfo {
                     operand_scope,
                     typesStr);
         errs() << ", ";
+        /*
 
-        auto debugLoc = store_inst->getDebugLoc();
-        std::string func_position = debugLoc ? (debugLoc->getFilename().str() + " +" + std::to_string(debugLoc->getLine())) : "(no-debug-info)";
-        errs() << llvm::formatv("\"{0}_position\": \"{1}\"", 
-                    report_class,
-                    func_position);
+        // TODO
+
+        if (store_inst) {
+            llvm::DebugLoc debugLoc = store_inst->getDebugLoc();   // ERROR HERE
+            std::string func_position;
+            
+            if (debugLoc) {
+                if (auto *scope = llvm::dyn_cast<llvm::DIScope>(debugLoc->getScope())) {
+                    func_position = scope->getFilename().str() + " +" + std::to_string(debugLoc.getLine());
+                } else {
+                    func_position = "(invalid-debug-scope)";
+                }
+            } else {
+                func_position = "(no-debug-info)";
+            }
+
+            llvm::errs() << llvm::formatv("\"{0}_position\": \"{1}\"", 
+                                        report_class,
+                                        func_position) << "\n";
+        }*/
     }    
 
     bool operator==(const StoreInstInfo& other) const {
@@ -146,30 +162,63 @@ struct CallInstInfo {
 
         std::string func_name = "unnamed_function";
 
-        if (call_path.back()->isIndirectCall()) {
-            auto *calledOperand = dyn_cast<LoadInst>(call_path.back()->getCalledOperand());
-
-            if (calledOperand && calledOperand->getPointerOperand()->hasName()) {
-                func_name = calledOperand->getPointerOperand()->getName().str();
-            }
+        if (!call_path.empty() && call_path.back()) {
             
-        } else {
+            /*
+
+            // TODO
+
+            auto *callOperand = call_path.back()->getCalledOperand();
+
+            
+            if (callOperand) {
+                if (llvm::Value* value = dyn_cast<llvm::Value>(callOperand)) {
+                    if (auto *loadInst = dyn_cast<llvm::LoadInst>(value)) {
+                        if (loadInst->getPointerOperand()->hasName()) {
+                            func_name = loadInst->getPointerOperand()->getName().str();
+                        }
+                    }
+                }
+            }
+
             auto *calledFunction = call_path.back()->getCalledFunction();
 
             if (calledFunction && calledFunction->hasName()) {
                 func_name = calledFunction->getName().str();
             }
-        }
-        errs() << llvm::formatv("\"{0}_func\": \"{1}\"", 
-                    REPORT_CLASS_GUARDED_FREE,
-                    func_name);
-        errs() << ", ";
 
-        auto debugLoc = call_path.back()->getDebugLoc();
-        std::string func_position = debugLoc ? (debugLoc->getFilename().str() + " +" + std::to_string(debugLoc->getLine())) : "(no-debug-info)";
-        errs() << llvm::formatv("\"{0}_position\": \"{1}\"", 
-                    REPORT_CLASS_GUARDED_FREE,
-                    func_position);
+            */
+            
+            errs() << llvm::formatv("\"{0}_func\": \"{1}\"", 
+                        REPORT_CLASS_GUARDED_FREE,
+                        func_name);
+            errs() << ", ";
+        }
+
+
+        
+        /*
+
+        // TODO
+
+        if (call_path.back()) {
+            llvm::DebugLoc debugLoc = call_path.back()->getDebugLoc();  // ERROR HERE
+            std::string func_position;
+            
+            if (debugLoc) {
+                if (auto *scope = llvm::dyn_cast<llvm::DIScope>(debugLoc->getScope())) {
+                    func_position = scope->getFilename().str() + " +" + std::to_string(debugLoc.getLine());
+                } else {
+                    func_position = "(invalid-debug-scope)";
+                }
+            } else {
+                func_position = "(no-debug-info)";
+            }
+
+            llvm::errs() << llvm::formatv("\"{0}_position\": \"{1}\"", 
+                                        REPORT_CLASS_GUARDED_FREE,
+                                        func_position) << "\n";
+        }*/
     }    
 
     bool operator==(const CallInstInfo& other) const {

@@ -38,44 +38,111 @@ std::unordered_map<std::string, Op> callInstbyType = {
 // This function examines whether the first call dominates the second call
 // within the program. 
 
-bool dominates(Instruction *firstCall, Instruction *secondCall, Module &M, ModuleAnalysisManager &MAM) {
-    auto *firstBB = firstCall->getParent();
-    auto *secondBB = secondCall->getParent();
-    auto *firstFunc = firstCall->getFunction();
-    auto *secondFunc = secondCall->getFunction();
-    auto &DT = MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager().getResult<DominatorTreeAnalysis>(*firstFunc);
-
-    if (firstCall == secondCall) {
+bool dominates(llvm::Instruction *firstCall, llvm::Instruction *secondCall, llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
+    // Check if the instruction pointers are null
+    if (!firstCall || !secondCall) {
         return false;
     }
 
+    // Get the parent basic block for each instruction and check if they are null
+    llvm::BasicBlock *firstBB = firstCall->getParent();
+    llvm::BasicBlock *secondBB = secondCall->getParent();
+
+    if (!firstBB || !secondBB) {
+        return false;
+    }
+
+    // Try to get the function for each instruction
+    llvm::Function *firstFunc = firstBB->getParent();
+    llvm::Function *secondFunc = secondBB->getParent();
+
+    // Check if the function pointers are null
+    if (!firstFunc || !secondFunc) {
+        return false;
+    }
+
+    // Check if the instructions belong to different functions
     if (firstFunc != secondFunc) {
         return false;
     }
 
+    // Get the dominator tree analysis for the function
+    auto *FAMProxyPtr = MAM.getCachedResult<FunctionAnalysisManagerModuleProxy>(M);
+    if (!FAMProxyPtr) {
+        return false;
+    }
+
+    auto &FAMProxy = *FAMProxyPtr;
+    auto &FAM = FAMProxy.getManager();
+
+    // Assuming 'firstFunc' is a valid pointer to a Function
+    if (!firstFunc) {
+        return false;
+    }
+
+    auto &DT = FAM.getResult<llvm::DominatorTreeAnalysis>(*firstFunc);
+
+    // Check if the instructions are the same
+    if (firstCall == secondCall) {
+        llvm::errs() << "Error: Instructions are the same.\n";
+        return false;
+    }
+
+    // Check if the instructions are in the same basic block
     if (firstBB == secondBB) {
+        llvm::errs() << "Checking domination within the same basic block.\n";
         return DT.dominates(firstCall, secondCall);
     }
+    
+    /*
 
+    // TODO
+
+    // Check if the first basic block's terminator instruction is a branch instruction
     llvm::Instruction *terminator = firstBB->getTerminator();
-
-    if (llvm::BranchInst *BI = llvm::dyn_cast<llvm::BranchInst>(terminator)) {
-        for (unsigned i = 0; i < BI->getNumSuccessors(); i++) {
-            if (DT.dominates(BI->getSuccessor(i), secondBB)) {
-                return true;
+    if (terminator) {
+        if (llvm::BranchInst *BI = llvm::dyn_cast<llvm::BranchInst>(terminator)) {
+            for (unsigned i = 0; i < BI->getNumSuccessors(); ++i) {
+                if (BI->getSuccessor(i) && DT.dominates(BI->getSuccessor(i), secondBB)) {
+                    llvm::errs() << "Instruction in successor basic block dominates.\n";
+                    return true;
+                }
             }
         }
-    }
-    
+    }*/
+
+    llvm::errs() << "Checking domination between different basic blocks.\n";
     return DT.dominates(firstBB, secondBB);
 }
 
 bool postdominates(Instruction *firstCall, Instruction *secondCall, Module &M, ModuleAnalysisManager &MAM) {
+
+    //TODO
+
     return false;
-    auto *firstBB = firstCall->getParent();
-    auto *secondBB = secondCall->getParent();
-    auto *firstFunc = firstCall->getFunction();
-    auto *secondFunc = secondCall->getFunction();
+
+    // Check if the instruction pointers are null
+    if (!firstCall || !secondCall) {
+        return false;
+    }
+
+    // Get the parent basic block for each instruction and check if they are null
+    llvm::BasicBlock *firstBB = firstCall->getParent();
+    llvm::BasicBlock *secondBB = secondCall->getParent();
+
+    if (!firstBB || !secondBB) {
+        return false;
+    }
+
+    // Try to get the function for each instruction
+    llvm::Function *firstFunc = firstBB->getParent();
+    llvm::Function *secondFunc = secondBB->getParent();
+
+    // Check if the function pointers are null
+    if (!firstFunc || !secondFunc) {
+        return false;
+    }
+
     auto &PDT = MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager().getResult<PostDominatorTreeAnalysis>(*firstFunc);
 
     if (firstCall == secondCall) {
@@ -215,24 +282,26 @@ std::string getOperandScope(Value* operandValue) {
 std::string getCallPathString(std::vector<CallInst*> call_path) {
     std::string call_path_string = "";
     for (const auto& call_inst : call_path) {
-        auto debugLoc = call_inst->getDebugLoc();
         
-        if (call_path_string != "") {
-            call_path_string += " -> ";
-        } 
 
-        
-        if(call_inst->getFunction()->hasName()) {
-            call_path_string += "@" + call_inst->getFunction()->getName().str() + "():";
-        } else {
-            call_path_string += "@undef_func():";
+        if (call_inst->getFunction()) {
+            if (call_path_string != "") {
+                call_path_string += " -> ";
+            } 
 
-        }
+            if(call_inst->getFunction()->hasName()) {
+                call_path_string += "@" + call_inst->getFunction()->getName().str() + "():";
+            } else {
+                call_path_string += "@undef_func():";
+            }
 
-        if (debugLoc) {
-            call_path_string += std::to_string(debugLoc->getLine());
-        } else {
-            call_path_string += "(no-debug-info)";
+            auto debugLoc = call_inst->getDebugLoc();
+
+            if (debugLoc) {
+                call_path_string += std::to_string(debugLoc->getLine());
+            } else {
+                call_path_string += "(no-debug-info)";
+            }
         }
     }
 
@@ -317,6 +386,10 @@ void handleDirectCallInst(CallInst* callInst, std::vector<CallInst*>call_path) {
     }
     
     callInstructions[info.call_inst_type].emplace_back(info);
+
+    if (callInst->isTailCall()) {
+        errs() << *callInst << "\n";
+    }
 }
 
 void handleInirectCallInst(CallInst* callInst, std::vector<CallInst*>call_path) {
@@ -442,8 +515,12 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
 
                             criticalRegion.lock_sync = lock_sync;
                             criticalRegion.unlock_sync = unlock_sync;
-                            criticalRegion.target_func_ret_type = solveTypeName(lock_call_path_inst->getFunction()->getReturnType()).str();
-                            criticalRegion.target_func = (lock_call_path_inst->getFunction()->hasName()) ? lock_call_path_inst->getFunction()->getName().str() : "undef_func";
+                            criticalRegion.target_func_ret_type = "undef_ret_type";
+
+                            if (lock_call_path_inst->getFunction()) {
+                                criticalRegion.target_func_ret_type = solveTypeName(lock_call_path_inst->getFunction()->getReturnType()).str();
+                                criticalRegion.target_func = (lock_call_path_inst->getFunction()->hasName()) ? lock_call_path_inst->getFunction()->getName().str() : "undef_func";
+                            }
 
                             for (const auto& free : callInstructions[Op::FREE]) {
                                 for (const auto& free_call_path_inst : free.call_path) {
@@ -676,6 +753,7 @@ void printCriticalRegionsInfo() {
 }
 
 PreservedAnalyses SyncPrimitivesPass::run(Module &M, ModuleAnalysisManager &MAM) {
+    errs() << "[BUILDING] Critical Regions...\n";
     for (Function &F : M) {
         for (BasicBlock &BB : F) {
             for (Instruction &I : BB) {
@@ -683,11 +761,11 @@ PreservedAnalyses SyncPrimitivesPass::run(Module &M, ModuleAnalysisManager &MAM)
             }
         }
 
-        errs() << "[BUILDING] Critical Regions...\n";
+        
         buildCriticalRegions(M, MAM);
-        errs() << "[!] Build completed!\n";
         printCriticalRegionsInfo();
     }
+    errs() << "[!] Build completed!\n";
 
     return PreservedAnalyses::all();
 }
@@ -715,7 +793,7 @@ llvm::PassPluginLibraryInfo getSyncPrimitivesPluginInfo() {
             // Register the pass for ThinLTO (Thin Link Time Optimization)
             PB.registerPipelineStartEPCallback(
                 [](ModulePassManager &MPM, OptimizationLevel Level) {
-                  //MPM.addPass(SyncPrimitivesPass());
+                  MPM.addPass(SyncPrimitivesPass());
                 });
           }};
 }

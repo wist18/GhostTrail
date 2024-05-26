@@ -1,7 +1,7 @@
-linux/
-linux-6.9.1-bc/
-linux-6.9.1-ll/
-llvm-project/
-passes-out/
+/linux/
+/linux-6.9.1-bc/
+/linux-6.9.1-ll/
+/llvm-project/
+/passes-out/
 
 passes/*.so
