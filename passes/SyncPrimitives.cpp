@@ -221,13 +221,19 @@ std::string getOperandScope(Value* operandValue) {
     return "$UNDEFINED_VARIABLE"; 
 }
 
-std::string getCallPathString(std::vector<CallInst*> call_path) {
+std::string getDebugInfo(llvm::Instruction *inst) {
+    
+
+    if (!inst) {
+        return "(debug-error)";
+    }
+
     std::string call_path_string = "";
+    auto debugLoc = inst->getDebugLoc();
 
-    if (!call_path.empty() && call_path.back()) {
+    if (debugLoc) {
 
-        if (call_path.back()->getDebugLoc() && call_path.back()->getDebugLoc().getInlinedAt()) {
-            auto debugLoc = call_path.back()->getDebugLoc();
+        if (debugLoc.getInlinedAt()) {
 
             if (!debugLoc) {
                 call_path_string = "(no-debug-info)";
@@ -247,8 +253,8 @@ std::string getCallPathString(std::vector<CallInst*> call_path) {
                     }
                     if (!debugLoc->getScope()->getName().empty()) {
                         call_path_string = "@" + debugLoc->getScope()->getName().str() + "():" + call_path_string;
-                    } else if (call_path.back()->getFunction() && call_path.back()->getFunction()->hasName()) {
-                        call_path_string = "@" + call_path.back()->getFunction()->getName().str() + "():" + call_path_string;
+                    } else if (inst->getFunction() && inst->getFunction()->hasName()) {
+                        call_path_string = "@" + inst->getFunction()->getName().str() + "():" + call_path_string;
                     } else {
                         call_path_string = "@undef_func():" + call_path_string;
                     }
@@ -263,39 +269,51 @@ std::string getCallPathString(std::vector<CallInst*> call_path) {
                 debugLoc = debugLoc.getInlinedAt();
             }
         } else {
-            for (const auto& call_inst : call_path) {
-
-                auto debugLoc = call_inst->getDebugLoc();
-
-                if (debugLoc) {
-                    if (call_path_string != "") {
-                    call_path_string += " -> ";
-                    } 
-                    
-                    if (debugLoc->getScope()) {
-                        if (!debugLoc->getScope()->getName().empty()) {
-                            call_path_string += "@" + debugLoc->getScope()->getName().str() + "():";
-                        } else if (call_inst->getFunction() && call_inst->getFunction()->hasName()) {
-                            call_path_string += "@" + call_inst->getFunction()->getName().str() + "():";
-                        } else {
-                            call_path_string += "@undef_func():";
-                        }
-
-                        if (!debugLoc->getScope()->getFilename().empty()) {
-                            call_path_string += debugLoc->getScope()->getFilename().str();
-                        }
-
-                        if (debugLoc->getLine()) {
-                            call_path_string += " +" + std::to_string(debugLoc->getLine());
-                        } else {
-                            call_path_string += "(no-debug-line)";
-                        }
-                    } else {
-                        call_path_string += "(no-debug-scope):";
-                    }
+            if (debugLoc->getScope()) {
+                if (!debugLoc->getScope()->getName().empty()) {
+                    call_path_string += "@" + debugLoc->getScope()->getName().str() + "():";
+                } else if (inst->getFunction() && inst->getFunction()->hasName()) {
+                    call_path_string += "@" + inst->getFunction()->getName().str() + "():";
                 } else {
-                    call_path_string += "(no-debug-info)";
+                    call_path_string += "@undef_func():";
                 }
+
+                if (!debugLoc->getScope()->getFilename().empty()) {
+                    call_path_string += debugLoc->getScope()->getFilename().str();
+                } else {
+                    call_path_string += "no-debug-directory";
+                }
+
+                if (debugLoc->getLine()) {
+                    call_path_string += " +" + std::to_string(debugLoc->getLine());
+                } else {
+                    call_path_string += "(no-debug-line)";
+                }
+            } else {
+                call_path_string = "(no-debug-scope):";
+            }
+        }
+    } else {
+        call_path_string = "(no-debug-info)";
+    }
+
+    return call_path_string;
+}
+
+std::string getCallPathString(std::vector<CallInst*> call_path) {
+    std::string call_path_string = "";
+
+    if (!call_path.empty() && call_path.back()) {
+
+        if (call_path.back()->getDebugLoc() && call_path.back()->getDebugLoc().getInlinedAt()) {
+            call_path_string = getDebugInfo(call_path.back());
+        } else {
+            for (const auto& call_inst : call_path) {
+                if (call_path_string != "") {
+                    call_path_string += " -> ";
+                }
+                
+                call_path_string += getDebugInfo(call_inst);
             }
         }
     }
@@ -379,18 +397,15 @@ void handleDirectCallInst(CallInst* callInst, std::vector<CallInst*>call_path) {
             info.call_inst_type = Op::UNLOCK;
         }
 
-        if (info.call_inst_type != Op::UNKNOWN) {
-
-            if (callInst->getCalledFunction()->arg_size() > 0) {
-                auto *calledFunctionFirstArg = callInst->getCalledFunction()->arg_begin();
-                info.operand_scope = getOperandScope(callInst->getArgOperand(0));
-                info.operand_type_list = getOperandTypes(calledFunctionFirstArg);
-            }
-            
-            info.call_path = call_path;
-            info.call_path_string = getCallPathString(call_path);
-            callInstructions[info.call_inst_type].emplace_back(info);
+        if (callInst->getCalledFunction()->arg_size() > 0) {
+            auto *calledFunctionFirstArg = callInst->getCalledFunction()->arg_begin();
+            info.operand_scope = getOperandScope(callInst->getArgOperand(0));
+            info.operand_type_list = getOperandTypes(calledFunctionFirstArg);
         }
+        
+        info.call_path = call_path;
+        info.call_path_string = getCallPathString(call_path);
+        callInstructions[info.call_inst_type].emplace_back(info);
     }
 }
 
@@ -442,7 +457,7 @@ void handleInst(Instruction* inst, std::vector<CallInst*>call_path = {}) {
         storeInstInfo.operand_scope = getOperandScope(SI->getPointerOperand());
         storeInstInfo.operand_type_list = getOperandTypes(SI->getPointerOperand());
         storeInstInfo.call_path = call_path;
-        storeInstInfo.call_path_string = getCallPathString(call_path);
+        storeInstInfo.call_path_string = (getCallPathString(call_path) != "") ? getCallPathString(call_path) : getDebugInfo(inst);
         if (isa<ConstantPointerNull>(SI->getValueOperand())) {
             storeInstInfo.store_inst_type = Op::UPDATE_NULL;
         } else if (isa<Function>(SI->getValueOperand())) {
@@ -569,12 +584,8 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                                             if (dominatesUnlock) {
                                                                 FreeGadget freeGadget;
                                                                 freeGadget.report_class = REPORT_CLASS_GUARDED_FREE_NULL; 
-                                                                std::string update_position = "(no-debug-info)";
-                                                                auto debugLoc = update.store_inst->getDebugLoc();
-                                                                if (debugLoc && debugLoc->getScope() && debugLoc->getLine()) {
-                                                                    update_position = debugLoc->getFilename().str() + " +" + std::to_string(debugLoc->getLine());
-                                                                }
-                                                                freeGadget.additional_report_info = llvm::formatv("\"{0}_call_path\": {1}, \"{0}_position\": {2}", "update_null", update.call_path_string, update_position);
+                                                                std::string update_position = getDebugInfo(update.store_inst);
+                                                                freeGadget.additional_report_info = "";
                                                                 freeGadget.callInstInfo = free;
                                                                 criticalRegion.free_gadgets.emplace_back(freeGadget);
                                                                 reportedStoreInstructions[Op::UPDATE_NULL].emplace_back(update);
@@ -616,12 +627,8 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                                             if (dominatesUnlock) {
                                                                 FreeGadget freeGadget;
                                                                 freeGadget.report_class = REPORT_CLASS_GUARDED_FREE_VAL;
-                                                                std::string update_position = "(no-debug-info)";
-                                                                auto debugLoc = update.store_inst->getDebugLoc();
-                                                                if (debugLoc && debugLoc->getScope() && debugLoc->getLine()) {
-                                                                    update_position = debugLoc->getFilename().str() + " +" + std::to_string(debugLoc->getLine());
-                                                                }
-                                                                freeGadget.additional_report_info = llvm::formatv("\"{0}_call_path\": {1}, \"{0}_position\": {2}", "update_val", update.call_path_string, update_position);
+                                                                std::string update_position = getDebugInfo(update.store_inst);
+                                                                freeGadget.additional_report_info = "";
                                                                 freeGadget.callInstInfo = free;
                                                                 criticalRegion.free_gadgets.emplace_back(freeGadget);
                                                                 reportedStoreInstructions[Op::UPDATE_VAL].emplace_back(update);
@@ -657,12 +664,8 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                                             if (dominatesUnlock) {
                                                                 FreeGadget freeGadget;
                                                                 freeGadget.report_class = REPORT_CALSS_GUARDED_FREE_LIST_DEL; 
-                                                                std::string update_position = "(no-debug-info)";
-                                                                auto debugLoc = update.call_path.back()->getDebugLoc();
-                                                                if (debugLoc && debugLoc->getScope() && debugLoc->getLine()) {
-                                                                    update_position = debugLoc->getFilename().str() + " +" + std::to_string(debugLoc->getLine());
-                                                                }
-                                                                freeGadget.additional_report_info = llvm::formatv("\"{0}_call_path\": {1}, \"{0}_position\": {2}", "list_del", update.call_path_string, update_position);
+                                                                std::string update_position = getDebugInfo(update.call_path.back());
+                                                                freeGadget.additional_report_info = "";
                                                                 freeGadget.callInstInfo = free;
                                                                 criticalRegion.free_gadgets.emplace_back(freeGadget);
                                                                 reportedCallInstructions[Op::LISTDEL].emplace_back(update);
@@ -694,6 +697,8 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                 if (dominatesUnlock) {
                                     UseGadget useGadget;
                                     useGadget.report_class = REPORT_CLASS_FPTR_COPY;
+                                    std::string update_position = getDebugInfo(use.store_inst);
+                                    useGadget.additional_report_info = "";
                                     useGadget.storeInstInfo = use;
                                     criticalRegion.use_gadgets.emplace_back(useGadget);   
                                     reportedStoreInstructions[Op::FPTR_COPY].emplace_back(use);
@@ -714,6 +719,8 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                 if (dominatesUnlock) {
                                     UseGadget useGadget;
                                     useGadget.report_class = REPORT_CLASS_FPTR_CALL;
+                                    std::string update_position = getDebugInfo(use.call_path.back());
+                                    useGadget.additional_report_info = "";
                                     useGadget.callInstInfo = use;
                                     criticalRegion.use_gadgets.emplace_back(useGadget);
                                     reportedCallInstructions[Op::FPTR_CALL].emplace_back(use);

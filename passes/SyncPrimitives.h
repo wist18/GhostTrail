@@ -71,45 +71,33 @@ struct StoreInstInfo {
     std::string call_path_string;
 
     void print(std::string report_class) const {
-        errs() << llvm::formatv("\"report_class\": \"{0}\"", 
-                    report_class);
-        errs() << ", ";
-        errs() << llvm::formatv("\"{0}_call_path\": \"{1}\"", 
-                report_class,
-                call_path_string);
-        errs() << ", ";
-
-        std::string typesStr = "";
-        for (const auto& type : operand_type_list) {
-            typesStr += "\"" + type + "\" ";
-        }
-        errs() << llvm::formatv("\"{0}_operand_scope\": \"{1}\", \"{0}_operand_type_list\": [ {2}]",
-                report_class,
-                operand_scope,
-                typesStr);
-        errs() << ", ";
-
-        std::string func_position = "(no-debug-info)";
-
         if (store_inst) {
-            auto debugLoc = store_inst->getDebugLoc();
+            errs() << llvm::formatv("\"report_class\": \"{0}\"", 
+                    report_class);
+            errs() << ", ";
+            errs() << llvm::formatv("\"{0}_call_path\": \"{1}\"", 
+                    report_class,
+                    call_path_string);
+            errs() << ", ";
 
-            if (debugLoc && debugLoc->getScope() && debugLoc->getLine()) {
-                func_position = debugLoc->getFilename().str() + " +" + std::to_string(debugLoc->getLine());
+            std::string typesStr = "";
+            for (const auto& type : operand_type_list) {
+                typesStr += "\"" + type + "\" ";
             }
+            errs() << llvm::formatv("\"{0}_operand_scope\": \"{1}\", \"{0}_operand_type_list\": [ {2}]",
+                    report_class,
+                    operand_scope,
+                    typesStr);
+            errs();
         }
-
-        errs() << llvm::formatv("\"{0}_position\": \"{1}\"", 
-                report_class,
-                func_position);
     }    
 
     bool operator==(const StoreInstInfo& other) const {
-        return call_path == other.call_path;
+        return call_path_string == other.call_path_string;
     }
 
     bool operator!=(const StoreInstInfo& other) const {
-        return call_path != other.call_path;
+        return call_path_string != other.call_path_string;
     }
 };
 
@@ -141,7 +129,6 @@ struct CallInstInfo {
         errs() << ", ";
 
         std::string func_name = "unnamed_function";
-        std::string func_position = "(no-debug-info)";
 
         if (!call_path.empty()) {
             
@@ -157,30 +144,19 @@ struct CallInstInfo {
                     func_name = call_path.back()->getCalledFunction()->getName().str();
                 }
             }
-            
-            auto debugLoc = call_path.back()->getDebugLoc();
-        
-            if (debugLoc && debugLoc->getScope() && debugLoc->getLine()) {
-                func_position = debugLoc->getFilename().str() + " +" + std::to_string(debugLoc->getLine());
-            }
         }
 
         errs() << llvm::formatv("\"{0}_func\": \"{1}\"", 
                     REPORT_CLASS_GUARDED_FREE,
                     func_name);
-        errs() << ", ";
-
-        errs() << llvm::formatv("\"{0}_position\": \"{1}\"", 
-                REPORT_CLASS_GUARDED_FREE,
-                func_position);
     }    
 
     bool operator==(const CallInstInfo& other) const {
-        return call_path == other.call_path;
+        return call_path_string == other.call_path_string;
     }
 
     bool operator!=(const CallInstInfo& other) const {
-        return call_path != other.call_path;
+        return call_path_string != other.call_path_string;
     }
 };
 
@@ -205,7 +181,7 @@ struct UseGadget {
     std::string report_class = "undefined";
     CallInstInfo callInstInfo;
     StoreInstInfo storeInstInfo;
-    std::string additional_report_info;
+    std::string additional_report_info = "";
 
     void print() const {
 
@@ -215,6 +191,11 @@ struct UseGadget {
         
         if (report_class == REPORT_CLASS_FPTR_CALL) {
             callInstInfo.print(report_class);
+        }
+
+        if (additional_report_info != "") {
+            errs() << ", ";
+            errs() << additional_report_info;
         }
     }
 };
