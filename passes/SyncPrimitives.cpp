@@ -25,10 +25,6 @@ std::unordered_map<Op, std::vector<StoreInstInfo>> storeInstructions;
 //===-- Function calls supported, along with type -------------------------===//
 
 std::unordered_map<std::string, Op> callInstbyType = {
-    {"pthread_mutex_lock", Op::LOCK},
-    {"pthread_mutex_unlock", Op::UNLOCK},
-    {"mutex_lock", Op::LOCK},
-    {"mutex_unlock", Op::UNLOCK},
     {"free", Op::FREE},
     {"list_del", Op::LISTDEL}
 };
@@ -39,6 +35,9 @@ std::unordered_map<std::string, Op> callInstbyType = {
 // within the program. 
 
 bool dominates(llvm::Instruction *firstCall, llvm::Instruction *secondCall, llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
+
+
+    return true;
     // Check if the instruction pointers are null
     if (!firstCall || !secondCall) {
         return false;
@@ -369,13 +368,22 @@ std::vector<std::string> getOperandTypes(Value* operandValue) {
 
 void handleDirectCallInst(CallInst* callInst, std::vector<CallInst*>call_path) {
     CallInstInfo info;
-    std::string calledFunctionName = "undef_func"; 
+    llvm::StringRef calledFunctionName = "undef_func"; 
     if (callInst && callInst->getCalledFunction() && callInst->getCalledFunction()->hasName()) {
-        calledFunctionName = callInst->getCalledFunction()->getName().str();
+        calledFunctionName = callInst->getCalledFunction()->getName();
     };
-    bool isSupported = callInstbyType.find(calledFunctionName) != callInstbyType.end();
+    bool isSupported = callInstbyType.find(calledFunctionName.str()) != callInstbyType.end();
     info.call_path = call_path;
-    info.call_inst_type = isSupported ? callInstbyType[calledFunctionName] : Op::UNKNOWN;
+    info.call_inst_type = isSupported ? callInstbyType[calledFunctionName.str()] : Op::UNKNOWN;
+
+    if (info.call_inst_type == Op::UNKNOWN && calledFunctionName.contains("mutex_lock")) {
+        info.call_inst_type = Op::LOCK;
+    }
+
+    if (info.call_inst_type == Op::UNKNOWN && calledFunctionName.contains("mutex_unlock")) {
+        info.call_inst_type = Op::UNLOCK;
+    }
+
     info.call_path_string = getCallPathString(call_path);
     if (callInst->arg_size() > 0) {
         auto *calledFunctionFirstArg = callInst->getArgOperand(0);
@@ -386,10 +394,6 @@ void handleDirectCallInst(CallInst* callInst, std::vector<CallInst*>call_path) {
     }
     
     callInstructions[info.call_inst_type].emplace_back(info);
-
-    if (callInst->isTailCall()) {
-        errs() << *callInst << "\n";
-    }
 }
 
 void handleInirectCallInst(CallInst* callInst, std::vector<CallInst*>call_path) {

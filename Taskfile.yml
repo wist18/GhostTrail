@@ -113,7 +113,7 @@ tasks:
             # Create the corresponding directory structure in the destination base
             mkdir -p "$BC_DIR/$dir"
             # Copy the file to the new location with the modified name
-            cp "$file" "$BC_DIR/$dir/${base}.bc"
+            mv "$file" "$BC_DIR/$dir/${base}.bc"
           done
 
           # Find all files starting with a dot
