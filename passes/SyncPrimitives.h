@@ -49,7 +49,7 @@
 #define REPORT_CLASS_GUARDED_FREE "guarded_free"
 #define REPORT_CLASS_GUARDED_FREE_NULL "guarded_free_null"
 #define REPORT_CLASS_GUARDED_FREE_VAL "guarded_free_val"
-#define REPORT_CALSS_GUARDED_FREE_LIST_DEL "guarded_free_list_del"
+#define REPORT_CLASS_GUARDED_FREE_LIST_DEL "guarded_free_list_del"
 #define REPORT_CLASS_FPTR_COPY "fptr_copy"
 #define REPORT_CLASS_FPTR_CALL "fptr_call"
 
@@ -163,10 +163,10 @@ struct CallInstInfo {
 struct FreeGadget {
     std::string report_class = "undefined";
     CallInstInfo callInstInfo;
+    StoreInstInfo storeInstInfo;
     std::string additional_report_info = "";
 
     void print() const {
-        
         callInstInfo.print(report_class);
 
         if (additional_report_info != "") {
@@ -184,7 +184,6 @@ struct UseGadget {
     std::string additional_report_info = "";
 
     void print() const {
-
         if (report_class == REPORT_CLASS_FPTR_COPY) {
             storeInstInfo.print(report_class);
         } 

@@ -471,10 +471,12 @@ void handleInst(Instruction* inst, std::vector<CallInst*>call_path = {}) {
 }
 
 void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
-    
+
     while(!callInstructions[Op::LOCK].empty() && !callInstructions[Op::UNLOCK].empty()) {
         std::unordered_map<Op, std::vector<CallInstInfo>> reportedCallInstructions;
         std::unordered_map<Op, std::vector<StoreInstInfo>> reportedStoreInstructions;
+
+        // Get the least-dominating locks (translates to finding the last lock or locks in the case of multiple control flow paths)
 
         for (const auto& lock_sync : callInstructions[Op::LOCK]) {
             bool dominates_other_locks = false;
@@ -496,6 +498,8 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
         for (const auto &lock_sync : reportedCallInstructions[Op::LOCK]) {
             std::vector<CallInstInfo> matching_unlocks;
 
+            // Get matching unlocks on operand type + scope with the locks above
+
             for (const auto& unlock_sync : callInstructions[Op::UNLOCK]) {
                 for (const auto& lock_call_path_inst : lock_sync.call_path) {
                     for (const auto& unlock_call_path_inst : unlock_sync.call_path) {
@@ -509,6 +513,8 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
             }
 
             std::vector<CallInstInfo> most_dominating_unlocks;
+            // Get the first matching lock or unlocks in the case of multiple control flow paths (translates to finding the most dominating unlocks)
+            // Intuition: a unlock function matches with the latest lock acquired.
 
             for (const auto& unlock_sync : matching_unlocks) {
                 bool is_dominated_by_matching_unlock = false;
@@ -583,10 +589,10 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
 
                                                             if (dominatesUnlock) {
                                                                 FreeGadget freeGadget;
-                                                                freeGadget.report_class = REPORT_CLASS_GUARDED_FREE_NULL; 
-                                                                std::string update_position = getDebugInfo(update.store_inst);
+                                                                freeGadget.report_class = REPORT_CLASS_GUARDED_FREE_NULL;
                                                                 freeGadget.additional_report_info = "";
                                                                 freeGadget.callInstInfo = free;
+                                                                freeGadget.storeInstInfo = update;
                                                                 criticalRegion.free_gadgets.emplace_back(freeGadget);
                                                                 reportedStoreInstructions[Op::UPDATE_NULL].emplace_back(update);
                                                             }
@@ -627,9 +633,9 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                                             if (dominatesUnlock) {
                                                                 FreeGadget freeGadget;
                                                                 freeGadget.report_class = REPORT_CLASS_GUARDED_FREE_VAL;
-                                                                std::string update_position = getDebugInfo(update.store_inst);
                                                                 freeGadget.additional_report_info = "";
                                                                 freeGadget.callInstInfo = free;
+                                                                freeGadget.storeInstInfo = update;
                                                                 criticalRegion.free_gadgets.emplace_back(freeGadget);
                                                                 reportedStoreInstructions[Op::UPDATE_VAL].emplace_back(update);
                                                             }
@@ -663,10 +669,10 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
 
                                                             if (dominatesUnlock) {
                                                                 FreeGadget freeGadget;
-                                                                freeGadget.report_class = REPORT_CALSS_GUARDED_FREE_LIST_DEL; 
-                                                                std::string update_position = getDebugInfo(update.call_path.back());
+                                                                freeGadget.report_class = REPORT_CLASS_GUARDED_FREE_LIST_DEL;
                                                                 freeGadget.additional_report_info = "";
                                                                 freeGadget.callInstInfo = free;
+                                                                // add aditional info
                                                                 criticalRegion.free_gadgets.emplace_back(freeGadget);
                                                                 reportedCallInstructions[Op::LISTDEL].emplace_back(update);
                                                             }
@@ -697,7 +703,6 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                 if (dominatesUnlock) {
                                     UseGadget useGadget;
                                     useGadget.report_class = REPORT_CLASS_FPTR_COPY;
-                                    std::string update_position = getDebugInfo(use.store_inst);
                                     useGadget.additional_report_info = "";
                                     useGadget.storeInstInfo = use;
                                     criticalRegion.use_gadgets.emplace_back(useGadget);   
@@ -719,7 +724,6 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                 if (dominatesUnlock) {
                                     UseGadget useGadget;
                                     useGadget.report_class = REPORT_CLASS_FPTR_CALL;
-                                    std::string update_position = getDebugInfo(use.call_path.back());
                                     useGadget.additional_report_info = "";
                                     useGadget.callInstInfo = use;
                                     criticalRegion.use_gadgets.emplace_back(useGadget);
