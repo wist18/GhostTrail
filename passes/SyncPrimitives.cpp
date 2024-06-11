@@ -22,10 +22,14 @@ std::unordered_map<Op, std::vector<CallInstInfo>> callInstructions;
 
 std::unordered_map<Op, std::vector<StoreInstInfo>> storeInstructions;
 
+std::vector<FreeGadget> reportedFreeGadgets;
+std::vector<UseGadget> reportedUseGadgets;
+
 //===-- Function calls supported, along with type -------------------------===//
 
 std::unordered_map<std::string, Op> callInstbyType = {
     {"free", Op::FREE},
+    {"kfree", Op::FREE},
     {"list_del", Op::LISTDEL}
 };
 
@@ -200,22 +204,19 @@ std::string getOperandScope(Value* operandValue) {
         return getOperandScope(LI->getPointerOperand());
     }
 
-    llvm::BasicBlock *operandBB = nullptr;
     llvm::Function *operandFunction = nullptr;
     llvm::Module *operandModule = nullptr;
 
     if (auto *inst = dyn_cast<llvm::Instruction>(operandValue)) {
-        operandBB = inst->getParent();
         operandFunction = inst->getFunction();
         operandModule = inst->getModule();
  
         // Build the scope string with safe checks for null pointers and names.
-        return "$" + (operandBB && operandBB->hasName() ? operandBB->getName().str() : "unnamed") +
-               "$" + (operandFunction && operandFunction->hasName() ? operandFunction->getName().str() : "unnamed") +
-               "$" + (operandModule ? operandModule->getSourceFileName() : "unnamed");
+        return "@" + (operandFunction && operandFunction->hasName() ? operandFunction->getName().str() : "unnamed_func") +
+               ":" + (operandModule ? operandModule->getSourceFileName() : "unnamed_module");
     } else if (auto *globalVariable = dyn_cast<llvm::GlobalVariable>(operandValue)) {
         operandModule = globalVariable->getParent();
-        return "$GLOBAL$" + (operandModule ? operandModule->getSourceFileName() : "unnamed");
+        return "$GLOBAL$" + (operandModule ? operandModule->getSourceFileName() : "unnamed_global_var");
     }
 
     return "$UNDEFINED_VARIABLE"; 
@@ -243,7 +244,7 @@ std::string getDebugInfo(llvm::Instruction *inst) {
                 if (debugLoc->getScope()) {
 
                     if (debugLoc->getLine()) {
-                        call_path_string = " +" + std::to_string(debugLoc->getLine()) + call_path_string;
+                        call_path_string = "+" + std::to_string(debugLoc->getLine()) + call_path_string;
                     } else {
                         call_path_string = "(no-debug-line)" + call_path_string;
                     }
@@ -405,7 +406,18 @@ void handleDirectCallInst(CallInst* callInst, std::vector<CallInst*>call_path) {
         
         info.call_path = call_path;
         info.call_path_string = getCallPathString(call_path);
-        callInstructions[info.call_inst_type].emplace_back(info);
+
+        bool isDuplicate = false;
+
+        for (const auto& other : callInstructions[info.call_inst_type]) {
+            if (info == other) {
+                isDuplicate = true;
+            }
+        }
+
+        if (!isDuplicate) {
+            callInstructions[info.call_inst_type].emplace_back(info);
+        }
     }
 }
 
@@ -783,12 +795,58 @@ PreservedAnalyses SyncPrimitivesPass::run(Module &M, ModuleAnalysisManager &MAM)
                 handleInst(&I);
             }
         }
-        
-        buildCriticalRegions(M, MAM);
+    }
+
+    buildCriticalRegions(M, MAM);
+
+    unsigned reportedScuafGadgets = 0;
+
+    // For every critical region build, ignore duplicate Free/Use Gadgets.
+    // If a Free/Use Gadget pair is unique, match them based on operand type.
+    // If they match, it means that a SCUAF Gadget is present and should be reported. 
+
+    for (const auto& criticalRegion : criticalRegions) {
+
+        unsigned uniqueFreeGadgets = 0;
+        unsigned uniqueUseGadgets = 0;
+
+        for (const auto& freeGadget : criticalRegion.free_gadgets) {
+            bool isDuplicate = false;
+
+            for (const auto& other : reportedFreeGadgets) {
+                if (freeGadget == other) {
+                    isDuplicate = true;
+                }
+            }
+
+            if (!isDuplicate) {
+                uniqueFreeGadgets++;
+                reportedFreeGadgets.emplace_back(freeGadget);
+            }
+        }
+
+        for (const auto& useGadget : criticalRegion.use_gadgets) {
+            bool isDuplicate = false;
+
+            for (const auto& other : reportedUseGadgets) {
+                if (useGadget == other) {
+                    isDuplicate = true;
+                }
+            }
+
+            if (!isDuplicate) {
+                uniqueUseGadgets++;
+                reportedUseGadgets.emplace_back(useGadget);
+            }
+        }
+
+        reportedScuafGadgets += uniqueFreeGadgets * uniqueUseGadgets;
     }
 
     printCriticalRegionsInfo();
+
     errs() << "[!] Build completed!\n";
+    errs() << llvm::formatv("\nFound: {0} SCUAF gadgets\n", reportedScuafGadgets);
 
     return PreservedAnalyses::all();
 }

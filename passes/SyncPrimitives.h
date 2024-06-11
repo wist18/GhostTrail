@@ -25,11 +25,6 @@
 #include <string>
 #include <algorithm> // Ensure to include for std::remove and std::erase
 
-#define RED_START "\033[1;31m"
-#define GREEN_START "\033[1;32m"
-#define YELLOW_START "\033[1;33m"
-#define BLUE_START "\033[1;34m"
-#define COLOR_END "\033[0m"
 #define SROA ".sroa"
 #define ADDR ".addr"
 
@@ -72,19 +67,19 @@ struct StoreInstInfo {
 
     void print(std::string report_class) const {
         if (store_inst) {
-            errs() << llvm::formatv("\"report_class\": \"{0}\"", 
+            errs() << llvm::formatv("report_class={0}", 
                     report_class);
             errs() << ", ";
-            errs() << llvm::formatv("\"{0}_call_path\": \"{1}\"", 
+            errs() << llvm::formatv("{0}_call_path={1}", 
                     report_class,
                     call_path_string);
             errs() << ", ";
 
             std::string typesStr = "";
             for (const auto& type : operand_type_list) {
-                typesStr += "\"" + type + "\" ";
+                typesStr += type + " ";
             }
-            errs() << llvm::formatv("\"{0}_operand_scope\": \"{1}\", \"{0}_operand_type_list\": [ {2}]",
+            errs() << llvm::formatv("{0}_operand_scope={1}, {0}_operand_type_list=[{2}]",
                     report_class,
                     operand_scope,
                     typesStr);
@@ -109,20 +104,20 @@ struct CallInstInfo {
     std::string call_path_string;
     
     void print(std::string report_class) const {
-        errs() << llvm::formatv("\"report_class\": \"{0}\"", 
+        errs() << llvm::formatv("report_class={0}", 
                     report_class);
         errs() << ", ";
         
-        errs() << llvm::formatv("\"{0}_call_path\": \"{1}\"", 
+        errs() << llvm::formatv("{0}_call_path={1}", 
                 REPORT_CLASS_GUARDED_FREE,
                 call_path_string);
         errs() << ", ";
 
         std::string typesStr = "";
         for (const auto& type : operand_type_list) {
-            typesStr += "\"" + type + "\" ";
+            typesStr += type + " ";
         }
-        errs() << llvm::formatv("\"{0}_operand_scope\": \"{1}\", \"{0}_operand_type_list\": [ {2}]",
+        errs() << llvm::formatv("{0}_operand_scope={1}, {0}_operand_type_list=[{2}]",
                     REPORT_CLASS_GUARDED_FREE,
                     operand_scope,
                     typesStr);
@@ -146,7 +141,7 @@ struct CallInstInfo {
             }
         }
 
-        errs() << llvm::formatv("\"{0}_func\": \"{1}\"", 
+        errs() << llvm::formatv("{0}_func={1}", 
                     REPORT_CLASS_GUARDED_FREE,
                     func_name);
     }    
@@ -175,6 +170,14 @@ struct FreeGadget {
         }
     }
 
+    bool operator==(const FreeGadget& other) const {
+        return report_class == other.report_class && callInstInfo.call_path_string == other.callInstInfo.call_path_string;
+    }
+
+    bool operator!=(const FreeGadget& other) const {
+        return report_class == other.report_class && callInstInfo.call_path_string != other.callInstInfo.call_path_string;
+    }
+
 };
 
 struct UseGadget {
@@ -197,6 +200,32 @@ struct UseGadget {
             errs() << additional_report_info;
         }
     }
+
+    bool operator==(const UseGadget& other) const {
+        if (report_class == other.report_class) {
+            if (report_class == REPORT_CLASS_FPTR_COPY) {
+                return storeInstInfo.call_path_string == other.storeInstInfo.call_path_string;
+            } else if (REPORT_CLASS_FPTR_CALL) {
+                return callInstInfo.call_path_string == other.callInstInfo.call_path_string;
+            }
+        } else {
+            return false;
+        }
+        
+    }
+
+    bool operator!=(const UseGadget& other) const {
+        if (report_class == other.report_class) {
+            if (report_class == REPORT_CLASS_FPTR_COPY) {
+                return storeInstInfo.call_path_string != other.storeInstInfo.call_path_string;
+            } else if (REPORT_CLASS_FPTR_CALL) {
+                return callInstInfo.call_path_string != other.callInstInfo.call_path_string;
+            }
+        } else {
+            return true;
+        }
+        
+    }
 };
 
 struct CriticalRegionInfo {
@@ -208,33 +237,26 @@ struct CriticalRegionInfo {
     std::vector<UseGadget> use_gadgets;
 
     void print() const {
-        
-        
-        errs() << llvm::formatv("\"target_func_ret_type\": \"{0}\", \"target_func\": \"{1}\"\n",
+        errs() << llvm::formatv("target_func_ret_type={0}, target_func={1}\n",
                     target_func_ret_type,
                     target_func);
         
-        errs() << BLUE_START;
         errs() << "[LOCK-INFO]: ";lock_sync.print("lock"); errs() << "\n";
         errs() << "[UNLOCK-INFO]: ";unlock_sync.print("unlock"); errs() << "\n";
-        errs() << COLOR_END;
-
         
-        errs() << RED_START;
-        unsigned freeCount = 1;
+        unsigned freeCount = 0;
         for (auto &free_gadget: free_gadgets) {
-            errs() << llvm::formatv("[FREE-INFO #{0}]: ", freeCount++);
+            errs() << llvm::formatv("[FREE-INFO #{0}]: ", ++freeCount);
             free_gadget.print();
             errs() << "\n";
         }
         
-        unsigned useCount = 1;
+        unsigned useCount = 0;
         for (auto &use_gadget: use_gadgets) {
-            errs() << llvm::formatv("[USE-INFO #{0}]: ", useCount++);
+            errs() << llvm::formatv("[USE-INFO #{0}]: ", ++useCount);
             use_gadget.print();
             errs() << "\n";
         }
-        errs() << COLOR_END;
 
         errs() << "**************************************************************************************\n";
     }    
