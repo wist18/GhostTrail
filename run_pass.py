@@ -44,9 +44,25 @@ def extract_gadgets(line):
         return int(match.group(1))
     return 0
 
-# Function to process all files in a directory and subdirectories to sum up the SCUAF gadgets
-def sum_scuaf_gadgets(directory):
+# Function to extract lock function types from a single line
+def extract_lock_func(line):
+    match = re.search(r'\block_func=(\w+)', line)
+    if match:
+        return match.group(1)
+    return None
+
+# Function to extract lock function types from a single line
+def extract_unlock_func(line):
+    match = re.search(r'\bunlock_func=(\w+)', line)
+    if match:
+        return match.group(1)
+    return None
+
+# Function to process all files in a directory and subdirectories to sum up the SCUAF gadgets and lock function types
+def process_files(directory):
     total_gadgets = 0
+    lock_func_counts = {}
+    unlock_func_counts = {}
 
     for root, _, files in os.walk(directory):
         for filename in files:
@@ -55,8 +71,21 @@ def sum_scuaf_gadgets(directory):
                 with open(file_path, 'r') as file:
                     for line in file:
                         total_gadgets += extract_gadgets(line)
-    
-    return total_gadgets
+                        lock_func = extract_lock_func(line)
+                        if lock_func:
+                            if lock_func in lock_func_counts:
+                                lock_func_counts[lock_func] += 1
+                            else:
+                                lock_func_counts[lock_func] = 1
+
+                        unlock_func = extract_unlock_func(line)
+                        if unlock_func:
+                            if unlock_func in unlock_func_counts:
+                                unlock_func_counts[unlock_func] += 1
+                            else:
+                                unlock_func_counts[unlock_func] = 1
+
+    return total_gadgets, lock_func_counts, unlock_func_counts
 
 # Function to write the total number of SCUAF gadgets to a file
 def write_total_to_file(total, output_file):
@@ -76,8 +105,8 @@ if __name__ == '__main__':
             break
         time.sleep(0.2)  # Delay before rerunning
 
-    # Calculate the total number of SCUAF gadgets
-    total_gadgets = sum_scuaf_gadgets(txt_dir)
+    # Calculate the total number of SCUAF gadgets and lock function counts
+    total_gadgets, lock_func_counts, unlock_func_counts = process_files(txt_dir)
 
     # Prepare the data to be saved
     data = {
@@ -86,7 +115,9 @@ if __name__ == '__main__':
         'll_dir': ll_dir,
         'txt_dir': txt_dir,
         'file_count': file_count, 
-        'scuaf_gadgets': total_gadgets
+        'scuaf_gadgets': total_gadgets,
+        'lock_func_counts': lock_func_counts,
+        'unlock_func_counts': unlock_func_counts
     }
 
     # Save the data to a JSON file
