@@ -11,10 +11,8 @@ load_dotenv()
 # Get the LINUX_VERSION environment variable
 linux_version = os.getenv('LINUX_VERSION')
 
-# Create the directory path
-bc_dir= f"linux-{linux_version}-bc"
-
-# Create the directory path
+# Create the directory paths
+bc_dir = f"linux-{linux_version}-bc"
 ll_dir = f"linux-{linux_version}-ll"
 
 # Directory containing the files
@@ -22,6 +20,11 @@ txt_dir = 'passes-out'
 
 # Output file
 stats_dir = 'stats.json'
+
+patterns = {
+    'lock': ['mutex_lock', 'spin_lock', 'semaphore_lock'],
+    'unlock': ['mutex_unlock', 'spin_unlock', 'semaphore_unlock']
+}
 
 def run_task():
     result = subprocess.run(["task", "run-pass"], capture_output=True)
@@ -51,18 +54,18 @@ def extract_lock_func(line):
         return match.group(1)
     return None
 
-# Function to extract lock function types from a single line
+# Function to extract unlock function types from a single line
 def extract_unlock_func(line):
     match = re.search(r'\bunlock_func=(\w+)', line)
     if match:
         return match.group(1)
     return None
 
-# Function to process all files in a directory and subdirectories to sum up the SCUAF gadgets and lock function types
+# Function to process all files in a directory and subdirectories to sum up the SCUAF gadgets and lock/unlock function types
 def process_files(directory):
     total_gadgets = 0
-    lock_func_counts = {}
-    unlock_func_counts = {}
+    lock_func_counts = {'total': 0, 'types': {}, 'mutex_lock': {}}
+    unlock_func_counts = {'total': 0, 'types': {}, 'mutex_unlock': {}}
 
     for root, _, files in os.walk(directory):
         for filename in files:
@@ -71,29 +74,36 @@ def process_files(directory):
                 with open(file_path, 'r') as file:
                     for line in file:
                         total_gadgets += extract_gadgets(line)
+                        
                         lock_func = extract_lock_func(line)
                         if lock_func:
-                            if lock_func in lock_func_counts:
-                                lock_func_counts[lock_func] += 1
+                            lock_func_counts['total'] += 1
+                            if lock_func in lock_func_counts['types']:
+                                lock_func_counts['types'][lock_func] += 1
                             else:
-                                lock_func_counts[lock_func] = 1
+                                lock_func_counts['types'][lock_func] = 1
+                            if 'mutex_lock' in lock_func:
+                                if lock_func in lock_func_counts['mutex_lock']:
+                                    lock_func_counts['mutex_lock'][lock_func] += 1
+                                else:
+                                    lock_func_counts['mutex_lock'][lock_func] = 1
 
                         unlock_func = extract_unlock_func(line)
                         if unlock_func:
-                            if unlock_func in unlock_func_counts:
-                                unlock_func_counts[unlock_func] += 1
+                            unlock_func_counts['total'] += 1
+                            if unlock_func in unlock_func_counts['types']:
+                                unlock_func_counts['types'][unlock_func] += 1
                             else:
-                                unlock_func_counts[unlock_func] = 1
+                                unlock_func_counts['types'][unlock_func] = 1
+                            if 'mutex_unlock' in unlock_func:
+                                if unlock_func in unlock_func_counts['mutex_unlock']:
+                                    unlock_func_counts['mutex_unlock'][unlock_func] += 1
+                                else:
+                                    unlock_func_counts['mutex_unlock'][unlock_func] = 1
 
     return total_gadgets, lock_func_counts, unlock_func_counts
 
-# Function to write the total number of SCUAF gadgets to a file
-def write_total_to_file(total, output_file):
-    with open(output_file, 'w') as file:
-        file.write(f'Total SCUAF gadgets found: {total}\n')
-
 if __name__ == '__main__':
-
     file_count = count_files(ll_dir)
 
     while True:
@@ -125,3 +135,5 @@ if __name__ == '__main__':
         json.dump(data, f, indent=4)
 
     print(f'Total SCUAF gadgets found: {total_gadgets}')
+    print(f'Lock function counts: {lock_func_counts}')
+    print(f'Unlock function counts: {unlock_func_counts}')

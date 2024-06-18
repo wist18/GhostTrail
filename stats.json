@@ -3,16 +3,24 @@
     "bc_dir": "linux-6.9.1-bc",
     "ll_dir": "linux-6.9.1-ll",
     "txt_dir": "passes-out",
-    "file_count": 955,
-    "scuaf_gadgets": 49,
+    "file_count": 234,
+    "scuaf_gadgets": 48,
     "lock_func_counts": {
-        "mutex_lock_nested": 2289,
-        "mutex_lock_interruptible_nested": 38,
-        "ww_mutex_lock": 3,
-        "ww_mutex_lock_interruptible": 5
+        "total": 87,
+        "types": {
+            "mutex_lock_nested": 87
+        },
+        "mutex_lock": {
+            "mutex_lock_nested": 87
+        }
     },
     "unlock_func_counts": {
-        "mutex_unlock": 2327,
-        "ww_mutex_unlock": 8
+        "total": 87,
+        "types": {
+            "mutex_unlock": 87
+        },
+        "mutex_unlock": {
+            "mutex_unlock": 87
+        }
     }
 }
