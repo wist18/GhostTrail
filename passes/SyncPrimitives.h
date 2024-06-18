@@ -109,7 +109,7 @@ struct CallInstInfo {
         errs() << ", ";
         
         errs() << llvm::formatv("{0}_call_path={1}", 
-                REPORT_CLASS_GUARDED_FREE,
+                report_class,
                 call_path_string);
         errs() << ", ";
 
@@ -118,7 +118,7 @@ struct CallInstInfo {
             typesStr += type + " ";
         }
         errs() << llvm::formatv("{0}_operand_scope={1}, {0}_operand_type_list=[{2}]",
-                    REPORT_CLASS_GUARDED_FREE,
+                    report_class,
                     operand_scope,
                     typesStr);
         errs() << ", ";
@@ -142,7 +142,7 @@ struct CallInstInfo {
         }
 
         errs() << llvm::formatv("{0}_func={1}", 
-                    REPORT_CLASS_GUARDED_FREE,
+                    report_class,
                     func_name);
     }    
 
