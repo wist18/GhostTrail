@@ -1,0 +1,7 @@
+{
+    "linux_version": "6.9.1",
+    "bc_dir": "linux-6.9.1-bc",
+    "ll_dir": "linux-6.9.1-ll",
+    "txt_dir": "passes-out",
+    "file_count": 645
+}
