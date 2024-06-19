@@ -28,9 +28,81 @@ std::vector<UseGadget> reportedUseGadgets;
 //===-- Function calls supported, along with type -------------------------===//
 
 std::unordered_map<std::string, Op> callInstbyType = {
-    {"free", Op::FREE},
     {"kfree", Op::FREE},
+    {"kmem_cache_free", Op::FREE},
+    {"mm_page_free", Op::FREE},
+    {"mm_page_free_batched", Op::FREE},
+    {"free", Op::FREE},
+    {"kzfree", Op::FREE},
+    {"vfree", Op::FREE},
+    {"kvfree", Op::FREE},
+    {"kfree_sensitive", Op::FREE},
+    {"kvfree_sensitive", Op::FREE},
+    {"debugfs_remove", Op::FREE},
+    {"debugfs_remove_recursive", Op::FREE},
+    {"usb_free_urb", Op::FREE},
+    {"kmem_cache_destroy", Op::FREE},
+    {"mempool_destroy", Op::FREE},
+    {"dma_pool_destroy", Op::FREE},
     {"list_del", Op::LISTDEL}
+};
+
+std::unordered_map<std::string, Op> syncInstbyType = {
+    // Spinlock
+    {"_raw_spin_trylock", Op::LOCK},
+    {"_raw_spin_lock", Op::LOCK},
+    {"_raw_spin_lock_nested", Op::LOCK},
+    {"_raw_spin_lock_bh", Op::LOCK},
+    {"_raw_spin_lock_irq", Op::LOCK},
+    {"_raw_spin_lock_irqsave", Op::LOCK},
+    {"_raw_spin_lock_irqsave_nested", Op::LOCK},
+    {"_raw_spin_unlock", Op::UNLOCK},
+    {"_raw_spin_unlock_bh", Op::UNLOCK},
+    {"_raw_spin_unlock_irq", Op::UNLOCK},
+    {"_raw_spin_unlock_irqrestore", Op::UNLOCK},
+
+    // RW Spinlock
+    {"_raw_read_trylock", Op::LOCK},        
+    {"_raw_read_lock", Op::LOCK},
+    {"_raw_read_lock_bh", Op::LOCK},
+    {"_raw_read_lock_irq", Op::LOCK},
+    {"_raw_read_lock_irqsave", Op::LOCK},
+    {"_raw_read_unlock", Op::UNLOCK},
+    {"_raw_read_unlock_bh", Op::UNLOCK},
+    {"_raw_read_unlock_irq", Op::UNLOCK},
+    {"_raw_read_unlock_irqrestore", Op::UNLOCK},
+
+    // Semaphore
+    {"down_trylock", Op::LOCK}, 
+    {"down", Op::LOCK}, 
+    {"down_interruptible", Op::LOCK}, 
+    {"down_killable", Op::LOCK}, 
+    {"down_timeout", Op::LOCK}, 
+    {"up", Op::UNLOCK},
+
+    // RW Semaphore
+    {"down_read_trylock", Op::LOCK}, 
+    {"down_read", Op::LOCK}, 
+    {"down_read_nested", Op::LOCK}, 
+    {"down_read_interruptible", Op::LOCK}, 
+    {"down_read_killable", Op::LOCK}, 
+    {"percpu_down_read", Op::LOCK}, 
+    {"down_write_trylock", Op::LOCK},
+    {"down_write", Op::LOCK},
+    {"down_write_nested", Op::LOCK},
+    {"down_write_killable", Op::LOCK},
+    {"percpu_down_write", Op::LOCK},
+    {"up_read", Op::UNLOCK},
+    {"percpu_up_read", Op::UNLOCK},
+    {"up_write", Op::UNLOCK},
+    {"percpu_up_write", Op::UNLOCK},
+
+    //Mutex
+    {"mutex_trylock", Op::LOCK},
+    {"mutex_lock_nested", Op::LOCK},
+    {"mutex_lock_interruptible_nested", Op::LOCK},
+    {"mutex_lock_killable_nested", Op::LOCK},
+    {"mutex_unlock", Op::UNLOCK}
 };
 
 //===-- Function - check for dominance between calls ----------------------===//
@@ -390,12 +462,11 @@ void handleDirectCallInst(CallInst* callInst, std::vector<CallInst*>call_path) {
         
         info.call_inst_type = isSupported ? callInstbyType[calledFunctionName.str()] : Op::UNKNOWN;
 
-        if (calledFunctionName.contains("mutex_lock")) {
-            info.call_inst_type = Op::LOCK;
-        }
-
-        if (calledFunctionName.contains("mutex_unlock")) {
-            info.call_inst_type = Op::UNLOCK;
+        for (const auto& pair : syncInstbyType) {
+            if (calledFunctionName.contains(pair.first)) {
+                info.call_inst_type = pair.second;
+                break;
+            }
         }
 
         if (callInst->getCalledFunction()->arg_size() > 0) {

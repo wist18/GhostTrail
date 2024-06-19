@@ -22,8 +22,8 @@ txt_dir = 'passes-out'
 stats_dir = 'stats.json'
 
 patterns = {
-    'lock': ['mutex_lock', 'spin_lock', 'semaphore_lock'],
-    'unlock': ['mutex_unlock', 'spin_unlock', 'semaphore_unlock']
+    'lock': ["spin_lock", "spin_trylock", "read_lock", "read_trylock", "write_lock", "write_trylock", "down_read", "down_write", "mutex_lock", "mutex_trylock", "futex_wait", "seqlock"],
+    'unlock': ["spin_unlock", "read_unlock", "write_unlock", "up_read", "up_write", "mutex_unlock", "futex_wake", "sequnlock"]
 }
 
 def run_task():
@@ -61,11 +61,33 @@ def extract_unlock_func(line):
         return match.group(1)
     return None
 
+def update_func_counts(func_counts, func, patterns):
+    if func:
+        func_counts['total'] += 1
+        if func in func_counts['types']:
+            func_counts['types'][func] += 1
+        else:
+            func_counts['types'][func] = 1
+
+        for key in patterns:
+            if key in func:
+                func_counts[key]['total'] += 1
+                if func in func_counts[key]['types']:
+                    func_counts[key]['types'][func] += 1
+                else:
+                    func_counts[key]['types'][func] = 1
+
 # Function to process all files in a directory and subdirectories to sum up the SCUAF gadgets and lock/unlock function types
 def process_files(directory):
     total_gadgets = 0
-    lock_func_counts = {'total': 0, 'types': {}, 'mutex_lock': {}}
-    unlock_func_counts = {'total': 0, 'types': {}, 'mutex_unlock': {}}
+    lock_func_counts = {'total': 0, 'types': {}}
+    unlock_func_counts = {'total': 0, 'types': {}}
+
+    for key in patterns['lock']:
+        lock_func_counts[key] = {'total': 0, 'types': {}}
+
+    for key in patterns['unlock']:
+        unlock_func_counts[key] = {'total': 0, 'types': {}}
 
     for root, _, files in os.walk(directory):
         for filename in files:
@@ -76,30 +98,10 @@ def process_files(directory):
                         total_gadgets += extract_gadgets(line)
                         
                         lock_func = extract_lock_func(line)
-                        if lock_func:
-                            lock_func_counts['total'] += 1
-                            if lock_func in lock_func_counts['types']:
-                                lock_func_counts['types'][lock_func] += 1
-                            else:
-                                lock_func_counts['types'][lock_func] = 1
-                            if 'mutex_lock' in lock_func:
-                                if lock_func in lock_func_counts['mutex_lock']:
-                                    lock_func_counts['mutex_lock'][lock_func] += 1
-                                else:
-                                    lock_func_counts['mutex_lock'][lock_func] = 1
+                        update_func_counts(lock_func_counts, lock_func, patterns['lock'])
 
                         unlock_func = extract_unlock_func(line)
-                        if unlock_func:
-                            unlock_func_counts['total'] += 1
-                            if unlock_func in unlock_func_counts['types']:
-                                unlock_func_counts['types'][unlock_func] += 1
-                            else:
-                                unlock_func_counts['types'][unlock_func] = 1
-                            if 'mutex_unlock' in unlock_func:
-                                if unlock_func in unlock_func_counts['mutex_unlock']:
-                                    unlock_func_counts['mutex_unlock'][unlock_func] += 1
-                                else:
-                                    unlock_func_counts['mutex_unlock'][unlock_func] = 1
+                        update_func_counts(unlock_func_counts, unlock_func, patterns['unlock'])
 
     return total_gadgets, lock_func_counts, unlock_func_counts
 
@@ -135,5 +137,3 @@ if __name__ == '__main__':
         json.dump(data, f, indent=4)
 
     print(f'Total SCUAF gadgets found: {total_gadgets}')
-    print(f'Lock function counts: {lock_func_counts}')
-    print(f'Unlock function counts: {unlock_func_counts}')

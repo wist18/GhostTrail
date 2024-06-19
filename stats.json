@@ -3,24 +3,413 @@
     "bc_dir": "linux-6.9.1-bc",
     "ll_dir": "linux-6.9.1-ll",
     "txt_dir": "passes-out",
-    "file_count": 234,
-    "scuaf_gadgets": 48,
+    "file_count": 732,
+    "scuaf_gadgets": 9124,
     "lock_func_counts": {
-        "total": 87,
+        "total": 263131,
         "types": {
-            "mutex_lock_nested": 87
+            "mutex_lock_nested": 158130,
+            "_raw_spin_lock_irqsave": 35545,
+            "_raw_spin_lock": 15217,
+            "down_write": 4023,
+            "down_read": 4021,
+            "rcu_read_lock_any_held": 1964,
+            "rcu_read_lock_held": 6333,
+            "__rcu_read_lock": 2449,
+            "_raw_spin_lock_irq": 3996,
+            "_raw_spin_trylock": 141,
+            "down_write_nested": 172,
+            "cpus_read_lock": 885,
+            "mutex_trylock": 792,
+            "futex_wait_multiple_setup": 1,
+            "futex_wait_setup": 1,
+            "_raw_write_lock_bh": 1200,
+            "_raw_spin_lock_bh": 4620,
+            "mutex_lock_interruptible_nested": 9218,
+            "down_read_nested": 86,
+            "__srcu_read_lock": 199,
+            "srcu_read_lock": 15,
+            "ww_mutex_lock": 238,
+            "down_read_trylock": 344,
+            "ww_mutex_lock_interruptible": 171,
+            "_raw_read_lock": 1657,
+            "ww_mutex_trylock": 33,
+            "_raw_write_lock": 1630,
+            "mmap_read_lock": 20,
+            "_raw_spin_lock_irqsave_nested": 14,
+            "_raw_spin_lock_nested": 285,
+            "_mutex_lock_nest_lock": 9,
+            "__raw_spin_lock_init": 85,
+            "mmap_write_lock_killable": 19,
+            "down_write_killable": 359,
+            "down_read_interruptible": 17,
+            "mutex_lock_killable_nested": 339,
+            "down_read_killable": 73,
+            "_raw_write_lock_irq": 882,
+            "_raw_read_lock_irqsave": 4368,
+            "refcount_dec_and_mutex_lock": 174,
+            "rt_mutex_trylock": 3,
+            "__hwspin_lock_timeout": 12,
+            "_raw_write_lock_irqsave": 1869,
+            "_raw_read_lock_bh": 570,
+            "_raw_read_lock_irq": 121,
+            "mutex_lock_io_nested": 2,
+            "down_write_trylock": 28,
+            "atomic_dec_and_mutex_lock": 14,
+            "percpu_down_write": 43,
+            "percpu_down_read": 290,
+            "__percpu_down_read": 7,
+            "ffs_mutex_lock": 5,
+            "rcu_read_lock_bh_held": 8,
+            "mlx5_irq_read_locked": 4,
+            "_raw_spin_trylock_bh": 8,
+            "nfp_cpp_mutex_lock": 2,
+            "bnx2x_vlan_mac_h_read_lock": 3,
+            "dm_bm_write_lock": 3,
+            "dm_tm_read_lock": 1,
+            "dm_bm_read_lock": 2,
+            "dm_bm_write_lock_zero": 1,
+            "bl_down_write": 1,
+            "ldsem_down_read": 1,
+            "ldsem_down_read_trylock": 6,
+            "ldsem_down_write_nested": 2,
+            "ldsem_down_write": 2,
+            "tty_write_lock": 1,
+            "mmap_write_lock": 21,
+            "cpus_write_lock": 2,
+            "rcu_read_lock_trace": 1,
+            "down_read_killable_nested": 1,
+            "rcu_read_lock_sched_held": 36,
+            "rcu_read_lock_sched": 11,
+            "spin_lock_irqsave_check_contention": 1,
+            "__ww_mutex_lock": 4,
+            "__mutex_lock": 2,
+            "__bpf_spin_lock_irqsave": 8,
+            "blk_req_needs_zone_write_lock": 1,
+            "f2fs_down_read": 33,
+            "_raw_write_trylock": 4,
+            "cifs_down_write": 1,
+            "reiserfs_write_lock": 157,
+            "reiserfs_write_lock_nested": 37,
+            "ext4_double_down_write_data_sem": 11,
+            "__btrfs_tree_read_lock": 1,
+            "btrfs_try_tree_read_lock": 1,
+            "btrfs_tree_read_lock": 1,
+            "btrfs_drew_try_write_lock": 24,
+            "btrfs_read_lock_root_node": 1,
+            "down_read_non_owner": 2,
+            "_raw_read_trylock": 36
+        },
+        "spin_lock": {
+            "total": 59783,
+            "types": {
+                "_raw_spin_lock_irqsave": 35545,
+                "_raw_spin_lock": 15217,
+                "_raw_spin_lock_irq": 3996,
+                "_raw_spin_lock_bh": 4620,
+                "_raw_spin_lock_irqsave_nested": 14,
+                "_raw_spin_lock_nested": 285,
+                "__raw_spin_lock_init": 85,
+                "__hwspin_lock_timeout": 12,
+                "spin_lock_irqsave_check_contention": 1,
+                "__bpf_spin_lock_irqsave": 8
+            }
+        },
+        "spin_trylock": {
+            "total": 149,
+            "types": {
+                "_raw_spin_trylock": 141,
+                "_raw_spin_trylock_bh": 8
+            }
+        },
+        "read_lock": {
+            "total": 18651,
+            "types": {
+                "rcu_read_lock_any_held": 1964,
+                "rcu_read_lock_held": 6333,
+                "__rcu_read_lock": 2449,
+                "cpus_read_lock": 885,
+                "__srcu_read_lock": 199,
+                "srcu_read_lock": 15,
+                "_raw_read_lock": 1657,
+                "mmap_read_lock": 20,
+                "_raw_read_lock_irqsave": 4368,
+                "_raw_read_lock_bh": 570,
+                "_raw_read_lock_irq": 121,
+                "rcu_read_lock_bh_held": 8,
+                "mlx5_irq_read_locked": 4,
+                "bnx2x_vlan_mac_h_read_lock": 3,
+                "dm_tm_read_lock": 1,
+                "dm_bm_read_lock": 2,
+                "rcu_read_lock_trace": 1,
+                "rcu_read_lock_sched_held": 36,
+                "rcu_read_lock_sched": 11,
+                "__btrfs_tree_read_lock": 1,
+                "btrfs_try_tree_read_lock": 1,
+                "btrfs_tree_read_lock": 1,
+                "btrfs_read_lock_root_node": 1
+            }
+        },
+        "read_trylock": {
+            "total": 386,
+            "types": {
+                "down_read_trylock": 344,
+                "ldsem_down_read_trylock": 6,
+                "_raw_read_trylock": 36
+            }
+        },
+        "write_lock": {
+            "total": 5847,
+            "types": {
+                "_raw_write_lock_bh": 1200,
+                "_raw_write_lock": 1630,
+                "mmap_write_lock_killable": 19,
+                "_raw_write_lock_irq": 882,
+                "_raw_write_lock_irqsave": 1869,
+                "dm_bm_write_lock": 3,
+                "dm_bm_write_lock_zero": 1,
+                "tty_write_lock": 1,
+                "mmap_write_lock": 21,
+                "cpus_write_lock": 2,
+                "blk_req_needs_zone_write_lock": 1,
+                "reiserfs_write_lock": 157,
+                "reiserfs_write_lock_nested": 37,
+                "btrfs_drew_try_write_lock": 24
+            }
+        },
+        "write_trylock": {
+            "total": 32,
+            "types": {
+                "down_write_trylock": 28,
+                "_raw_write_trylock": 4
+            }
+        },
+        "down_read": {
+            "total": 4881,
+            "types": {
+                "down_read": 4021,
+                "down_read_nested": 86,
+                "down_read_trylock": 344,
+                "down_read_interruptible": 17,
+                "down_read_killable": 73,
+                "percpu_down_read": 290,
+                "__percpu_down_read": 7,
+                "ldsem_down_read": 1,
+                "ldsem_down_read_trylock": 6,
+                "down_read_killable_nested": 1,
+                "f2fs_down_read": 33,
+                "down_read_non_owner": 2
+            }
+        },
+        "down_write": {
+            "total": 4642,
+            "types": {
+                "down_write": 4023,
+                "down_write_nested": 172,
+                "down_write_killable": 359,
+                "down_write_trylock": 28,
+                "percpu_down_write": 43,
+                "bl_down_write": 1,
+                "ldsem_down_write_nested": 2,
+                "ldsem_down_write": 2,
+                "cifs_down_write": 1,
+                "ext4_double_down_write_data_sem": 11
+            }
         },
         "mutex_lock": {
-            "mutex_lock_nested": 87
+            "total": 168308,
+            "types": {
+                "mutex_lock_nested": 158130,
+                "mutex_lock_interruptible_nested": 9218,
+                "ww_mutex_lock": 238,
+                "ww_mutex_lock_interruptible": 171,
+                "_mutex_lock_nest_lock": 9,
+                "mutex_lock_killable_nested": 339,
+                "refcount_dec_and_mutex_lock": 174,
+                "mutex_lock_io_nested": 2,
+                "atomic_dec_and_mutex_lock": 14,
+                "ffs_mutex_lock": 5,
+                "nfp_cpp_mutex_lock": 2,
+                "__ww_mutex_lock": 4,
+                "__mutex_lock": 2
+            }
+        },
+        "mutex_trylock": {
+            "total": 828,
+            "types": {
+                "mutex_trylock": 792,
+                "ww_mutex_trylock": 33,
+                "rt_mutex_trylock": 3
+            }
+        },
+        "futex_wait": {
+            "total": 2,
+            "types": {
+                "futex_wait_multiple_setup": 1,
+                "futex_wait_setup": 1
+            }
+        },
+        "seqlock": {
+            "total": 0,
+            "types": {}
         }
     },
     "unlock_func_counts": {
-        "total": 87,
+        "total": 263131,
         "types": {
-            "mutex_unlock": 87
+            "mutex_unlock": 169409,
+            "_raw_spin_unlock_irqrestore": 35287,
+            "_raw_spin_unlock": 15179,
+            "up_write": 4577,
+            "up_read": 4572,
+            "__rcu_read_unlock": 8838,
+            "_raw_spin_unlock_irq": 3991,
+            "rcu_read_unlock": 1654,
+            "cpus_read_unlock": 1120,
+            "_raw_write_unlock_bh": 1212,
+            "_raw_spin_unlock_bh": 4679,
+            "__srcu_read_unlock": 199,
+            "srcu_read_unlock": 19,
+            "ww_mutex_unlock": 440,
+            "_raw_read_unlock": 1691,
+            "_raw_write_unlock": 1626,
+            "mmap_read_unlock": 28,
+            "mmap_write_unlock": 57,
+            "_raw_write_unlock_irq": 882,
+            "_raw_read_unlock_irqrestore": 4368,
+            "rt_mutex_unlock": 3,
+            "__hwspin_unlock": 35,
+            "_raw_write_unlock_irqrestore": 1869,
+            "_raw_read_unlock_bh": 568,
+            "_raw_read_unlock_irq": 117,
+            "percpu_up_write": 45,
+            "percpu_up_read": 315,
+            "nfp_cpp_mutex_unlock": 2,
+            "bnx2x_vlan_mac_h_read_unlock": 3,
+            "sdeb_read_unlock": 4,
+            "sdeb_write_unlock": 4,
+            "__blk_req_zone_write_unlock": 2,
+            "doc_setup_writeaddr_sector": 1,
+            "mlx5vf_state_mutex_unlock": 7,
+            "bl_up_read": 1,
+            "bl_up_write": 1,
+            "ldsem_up_read": 7,
+            "ldsem_up_write": 4,
+            "write_sequnlock": 2,
+            "spkup_write": 2,
+            "cpus_write_unlock": 2,
+            "rcu_read_unlock_bh": 1,
+            "rcu_read_unlock_trace": 1,
+            "tipc_node_write_unlock": 6,
+            "rcu_read_unlock_sched": 51,
+            "rcu_read_unlock_trace_special": 1,
+            "debug_mutex_unlock": 3,
+            "__mutex_unlock_slowpath": 1,
+            "__bpf_spin_unlock_irqrestore": 8,
+            "mtty_state_mutex_unlock": 1,
+            "f2fs_up_write": 9,
+            "reiserfs_write_unlock": 165,
+            "reiserfs_write_unlock_nested": 23,
+            "ext4_double_up_write_data_sem": 9,
+            "btrfs_tree_read_unlock": 4,
+            "btrfs_drew_write_unlock": 24,
+            "up_read_non_owner": 2
+        },
+        "spin_unlock": {
+            "total": 59179,
+            "types": {
+                "_raw_spin_unlock_irqrestore": 35287,
+                "_raw_spin_unlock": 15179,
+                "_raw_spin_unlock_irq": 3991,
+                "_raw_spin_unlock_bh": 4679,
+                "__hwspin_unlock": 35,
+                "__bpf_spin_unlock_irqrestore": 8
+            }
+        },
+        "read_unlock": {
+            "total": 18667,
+            "types": {
+                "__rcu_read_unlock": 8838,
+                "rcu_read_unlock": 1654,
+                "cpus_read_unlock": 1120,
+                "__srcu_read_unlock": 199,
+                "srcu_read_unlock": 19,
+                "_raw_read_unlock": 1691,
+                "mmap_read_unlock": 28,
+                "_raw_read_unlock_irqrestore": 4368,
+                "_raw_read_unlock_bh": 568,
+                "_raw_read_unlock_irq": 117,
+                "bnx2x_vlan_mac_h_read_unlock": 3,
+                "sdeb_read_unlock": 4,
+                "rcu_read_unlock_bh": 1,
+                "rcu_read_unlock_trace": 1,
+                "rcu_read_unlock_sched": 51,
+                "rcu_read_unlock_trace_special": 1,
+                "btrfs_tree_read_unlock": 4
+            }
+        },
+        "write_unlock": {
+            "total": 5872,
+            "types": {
+                "_raw_write_unlock_bh": 1212,
+                "_raw_write_unlock": 1626,
+                "mmap_write_unlock": 57,
+                "_raw_write_unlock_irq": 882,
+                "_raw_write_unlock_irqrestore": 1869,
+                "sdeb_write_unlock": 4,
+                "__blk_req_zone_write_unlock": 2,
+                "cpus_write_unlock": 2,
+                "tipc_node_write_unlock": 6,
+                "reiserfs_write_unlock": 165,
+                "reiserfs_write_unlock_nested": 23,
+                "btrfs_drew_write_unlock": 24
+            }
+        },
+        "up_read": {
+            "total": 4897,
+            "types": {
+                "up_read": 4572,
+                "percpu_up_read": 315,
+                "bl_up_read": 1,
+                "ldsem_up_read": 7,
+                "up_read_non_owner": 2
+            }
+        },
+        "up_write": {
+            "total": 4648,
+            "types": {
+                "up_write": 4577,
+                "percpu_up_write": 45,
+                "doc_setup_writeaddr_sector": 1,
+                "bl_up_write": 1,
+                "ldsem_up_write": 4,
+                "spkup_write": 2,
+                "f2fs_up_write": 9,
+                "ext4_double_up_write_data_sem": 9
+            }
         },
         "mutex_unlock": {
-            "mutex_unlock": 87
+            "total": 169866,
+            "types": {
+                "mutex_unlock": 169409,
+                "ww_mutex_unlock": 440,
+                "rt_mutex_unlock": 3,
+                "nfp_cpp_mutex_unlock": 2,
+                "mlx5vf_state_mutex_unlock": 7,
+                "debug_mutex_unlock": 3,
+                "__mutex_unlock_slowpath": 1,
+                "mtty_state_mutex_unlock": 1
+            }
+        },
+        "futex_wake": {
+            "total": 0,
+            "types": {}
+        },
+        "sequnlock": {
+            "total": 2,
+            "types": {
+                "write_sequnlock": 2
+            }
         }
     }
 }
