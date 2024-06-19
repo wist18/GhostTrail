@@ -22,8 +22,8 @@ txt_dir = 'passes-out'
 stats_dir = 'stats.json'
 
 patterns = {
-    'lock': ["spin_lock", "spin_trylock", "read_lock", "read_trylock", "write_lock", "write_trylock", "down_read", "down_write", "mutex_lock", "mutex_trylock", "futex_wait", "seqlock"],
-    'unlock': ["spin_unlock", "read_unlock", "write_unlock", "up_read", "up_write", "mutex_unlock", "futex_wake", "sequnlock"]
+    'lock': ["spin_lock", "spin_trylock", "read_lock", "read_trylock", "write_lock", "write_trylock", "down_read", "down_write", "mutex_lock", "mutex_trylock", "down"],
+    'unlock': ["spin_unlock", "read_unlock", "write_unlock", "up_read", "up_write", "mutex_unlock", "up"]
 }
 
 def run_task():

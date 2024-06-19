@@ -71,6 +71,15 @@ std::unordered_map<std::string, Op> syncInstbyType = {
     {"_raw_read_unlock_bh", Op::UNLOCK},
     {"_raw_read_unlock_irq", Op::UNLOCK},
     {"_raw_read_unlock_irqrestore", Op::UNLOCK},
+    {"_raw_write_trylock", Op::LOCK},  
+    {"_raw_write_lock", Op::LOCK}, 
+    {"_raw_write_lock_bh", Op::LOCK}, 
+    {"_raw_write_lock_irq", Op::LOCK}, 
+    {"_raw_write_lock_irqsave", Op::LOCK},
+    {"_raw_write_unlock", Op::UNLOCK},
+    {"_raw_write_unlock_bh", Op::UNLOCK},
+    {"_raw_write_unlock_irq", Op::UNLOCK},
+    {"_raw_write_unlock_irqrestore", Op::UNLOCK},
 
     // Semaphore
     {"down_trylock", Op::LOCK}, 
@@ -87,13 +96,13 @@ std::unordered_map<std::string, Op> syncInstbyType = {
     {"down_read_interruptible", Op::LOCK}, 
     {"down_read_killable", Op::LOCK}, 
     {"percpu_down_read", Op::LOCK}, 
+    {"up_read", Op::UNLOCK},
+    {"percpu_up_read", Op::UNLOCK},
     {"down_write_trylock", Op::LOCK},
     {"down_write", Op::LOCK},
     {"down_write_nested", Op::LOCK},
     {"down_write_killable", Op::LOCK},
     {"percpu_down_write", Op::LOCK},
-    {"up_read", Op::UNLOCK},
-    {"percpu_up_read", Op::UNLOCK},
     {"up_write", Op::UNLOCK},
     {"percpu_up_write", Op::UNLOCK},
 
@@ -307,10 +316,6 @@ std::string getDebugInfo(llvm::Instruction *inst) {
     if (debugLoc) {
 
         if (debugLoc.getInlinedAt()) {
-
-            if (!debugLoc) {
-                call_path_string = "(no-debug-info)";
-            }
 
             while (debugLoc) {
                 if (debugLoc->getScope()) {
