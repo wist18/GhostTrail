@@ -449,7 +449,7 @@ std::vector<std::string> getOperandTypes(Value* operandValue) {
         }
     }
 
-    // std::reverse(operandTypes.begin(), operandTypes.end());
+    std::reverse(operandTypes.begin(), operandTypes.end());
     return operandTypes;
 }
 
@@ -891,7 +891,7 @@ PreservedAnalyses SyncPrimitivesPass::run(Module &M, ModuleAnalysisManager &MAM)
         }
 
         for (const auto& useGadget : criticalRegion.use_gadgets) {
-            if (useGadget.report_class == REPORT_CLASS_FPTR_CALL) {
+            if (true) {
                 bool isDuplicate = false;
 
                 for (const auto& other : reportedUseGadgets) {

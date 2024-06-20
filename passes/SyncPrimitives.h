@@ -177,6 +177,21 @@ struct CallInstInfo {
             }
         }
 
+        /*
+        if (!call_path.empty()) {
+            if (call_path.back()->isIndirectCall()) {
+                Value *calledValue = call_path.back()->getCalledOperand()->stripPointerCasts();
+                if (calledValue->hasName()) {
+                    func_name = calledValue->getName().str();
+                }
+            } else {
+                Function *calledFunction = call_path.back()->getCalledFunction();
+                if (calledFunction->hasName()) {
+                    func_name = calledFunction->getName().str();
+                }
+            }
+        }*/
+
         errs() << llvm::formatv("{0}_func={1}", 
                     report_class,
                     func_name);
