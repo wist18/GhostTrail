@@ -58,7 +58,7 @@ public:
 };
 
 struct StoreInstInfo {
-    Op store_inst_type = Op::UNKNOWN;
+    enum Op store_inst_type = Op::UNKNOWN;
     llvm::StoreInst* store_inst = nullptr;
     std::string operand_scope;
     std::vector<std::string> operand_type_list;
@@ -75,11 +75,16 @@ struct StoreInstInfo {
                     call_path_string);
             errs() << ", ";
 
+            errs() << llvm::formatv("{0}_call_path_length={1}", 
+                    report_class,
+                    call_path.size());
+            errs() << ", ";
+
             std::string typesStr = "";
             for (const auto& type : operand_type_list) {
-                typesStr += type + " ";
+                typesStr += " " + type;
             }
-            errs() << llvm::formatv("{0}_operand_scope={1}, {0}_operand_type_list=[{2}]",
+            errs() << llvm::formatv("{0}_operand_scope={1}, {0}_operand_type_list=[{2} ]",
                     report_class,
                     operand_scope,
                     typesStr);
@@ -113,11 +118,16 @@ struct CallInstInfo {
                 call_path_string);
         errs() << ", ";
 
+        errs() << llvm::formatv("{0}_call_path_length={1}", 
+                report_class,
+                call_path.size());
+        errs() << ", ";
+
         std::string typesStr = "";
         for (const auto& type : operand_type_list) {
-            typesStr += type + " ";
+            typesStr += " " + type;
         }
-        errs() << llvm::formatv("{0}_operand_scope={1}, {0}_operand_type_list=[{2}]",
+        errs() << llvm::formatv("{0}_operand_scope={1}, {0}_operand_type_list=[{2} ]",
                     report_class,
                     operand_scope,
                     typesStr);
@@ -175,7 +185,7 @@ struct FreeGadget {
     }
 
     bool operator!=(const FreeGadget& other) const {
-        return report_class == other.report_class && callInstInfo.call_path_string != other.callInstInfo.call_path_string;
+        return report_class != other.report_class || callInstInfo.call_path_string != other.callInstInfo.call_path_string;
     }
 
 };
@@ -202,29 +212,19 @@ struct UseGadget {
     }
 
     bool operator==(const UseGadget& other) const {
-        if (report_class == other.report_class) {
-            if (report_class == REPORT_CLASS_FPTR_COPY) {
-                return storeInstInfo.call_path_string == other.storeInstInfo.call_path_string;
-            } else if (REPORT_CLASS_FPTR_CALL) {
-                return callInstInfo.call_path_string == other.callInstInfo.call_path_string;
-            }
-        } else {
-            return false;
+        if (report_class == REPORT_CLASS_FPTR_COPY) {
+            return report_class == other.report_class && storeInstInfo.call_path_string == other.storeInstInfo.call_path_string;
+        } else if (REPORT_CLASS_FPTR_CALL) {
+            return report_class == other.report_class && callInstInfo.call_path_string == other.callInstInfo.call_path_string;
         }
-        
     }
 
     bool operator!=(const UseGadget& other) const {
-        if (report_class == other.report_class) {
-            if (report_class == REPORT_CLASS_FPTR_COPY) {
-                return storeInstInfo.call_path_string != other.storeInstInfo.call_path_string;
-            } else if (REPORT_CLASS_FPTR_CALL) {
-                return callInstInfo.call_path_string != other.callInstInfo.call_path_string;
-            }
-        } else {
-            return true;
+        if (report_class == REPORT_CLASS_FPTR_COPY) {
+            return !(report_class == other.report_class && storeInstInfo.call_path_string == other.storeInstInfo.call_path_string);
+        } else if (REPORT_CLASS_FPTR_CALL) {
+            return !(report_class == other.report_class && callInstInfo.call_path_string == other.callInstInfo.call_path_string);
         }
-        
     }
 };
 

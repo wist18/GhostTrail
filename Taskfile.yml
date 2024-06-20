@@ -199,6 +199,12 @@ tasks:
               exit 137
             fi
 
+            # Check the exit status of the timeout command
+            if [ $? -eq 124 ]; then
+              # Erase the contents of the output file
+              > "$output_file"
+            fi
+
             # Remove the .ll file after processing
             rm -f "$file"
           done

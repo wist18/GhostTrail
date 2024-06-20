@@ -19,15 +19,14 @@ std::vector<CriticalRegionInfo> criticalRegions;
 //===-- Collection supported function calls found -------------------------===//
 
 std::unordered_map<Op, std::vector<CallInstInfo>> callInstructions;
-
 std::unordered_map<Op, std::vector<StoreInstInfo>> storeInstructions;
-
 std::vector<FreeGadget> reportedFreeGadgets;
 std::vector<UseGadget> reportedUseGadgets;
 
 //===-- Function calls supported, along with type -------------------------===//
 
 std::unordered_map<std::string, Op> callInstbyType = {
+    //FREE
     {"kfree", Op::FREE},
     {"kmem_cache_free", Op::FREE},
     {"mm_page_free", Op::FREE},
@@ -44,10 +43,8 @@ std::unordered_map<std::string, Op> callInstbyType = {
     {"kmem_cache_destroy", Op::FREE},
     {"mempool_destroy", Op::FREE},
     {"dma_pool_destroy", Op::FREE},
-    {"list_del", Op::LISTDEL}
-};
+    {"list_del", Op::LISTDEL},
 
-std::unordered_map<std::string, Op> syncInstbyType = {
     // Spinlock
     {"_raw_spin_trylock", Op::LOCK},
     {"_raw_spin_lock", Op::LOCK},
@@ -305,74 +302,80 @@ std::string getOperandScope(Value* operandValue) {
 
 std::string getDebugInfo(llvm::Instruction *inst) {
     
-
     if (!inst) {
         return "(debug-error)";
     }
 
-    std::string call_path_string = "";
     auto debugLoc = inst->getDebugLoc();
 
-    if (debugLoc) {
+    if (!debugLoc) {
+        return "(no-debug-info)";
+    }
 
-        if (debugLoc.getInlinedAt()) {
+    std::string call_path_string = "";
 
-            while (debugLoc) {
-                if (debugLoc->getScope()) {
+    if (debugLoc.getInlinedAt()) {
 
-                    if (debugLoc->getLine()) {
-                        call_path_string = "+" + std::to_string(debugLoc->getLine()) + call_path_string;
-                    } else {
-                        call_path_string = "(no-debug-line)" + call_path_string;
-                    }
+        unsigned call_path_size = 0;
 
-                    if (!debugLoc->getScope()->getFilename().empty()) {
-                        call_path_string = debugLoc->getScope()->getFilename().str() + call_path_string;
-                    }
-                    if (!debugLoc->getScope()->getName().empty()) {
-                        call_path_string = "@" + debugLoc->getScope()->getName().str() + "():" + call_path_string;
-                    } else if (inst->getFunction() && inst->getFunction()->hasName()) {
-                        call_path_string = "@" + inst->getFunction()->getName().str() + "():" + call_path_string;
-                    } else {
-                        call_path_string = "@undef_func():" + call_path_string;
-                    }
-                } else {
-                    call_path_string = "(no-debug-scope):" + call_path_string;
-                }
-
-                if (debugLoc.getInlinedAt()) {
-                    call_path_string = " -> " + call_path_string;
-                }
-
-                debugLoc = debugLoc.getInlinedAt();
-            }
-        } else {
+        while (debugLoc) {
+            call_path_size++;
+            
             if (debugLoc->getScope()) {
-                if (!debugLoc->getScope()->getName().empty()) {
-                    call_path_string += "@" + debugLoc->getScope()->getName().str() + "():";
-                } else if (inst->getFunction() && inst->getFunction()->hasName()) {
-                    call_path_string += "@" + inst->getFunction()->getName().str() + "():";
+
+                if (debugLoc->getLine()) {
+                    call_path_string = " +" + std::to_string(debugLoc->getLine()) + call_path_string;
                 } else {
-                    call_path_string += "@undef_func():";
+                    call_path_string = "(no-debug-line -- may be defined)" + call_path_string;
                 }
 
                 if (!debugLoc->getScope()->getFilename().empty()) {
-                    call_path_string += debugLoc->getScope()->getFilename().str();
-                } else {
-                    call_path_string += "no-debug-directory";
+                    call_path_string = debugLoc->getScope()->getFilename().str() + call_path_string;
                 }
-
-                if (debugLoc->getLine()) {
-                    call_path_string += " +" + std::to_string(debugLoc->getLine());
+                if (!debugLoc->getScope()->getName().empty()) {
+                    call_path_string = "@" + debugLoc->getScope()->getName().str() + "():" + call_path_string;
+                } else if (inst->getFunction() && inst->getFunction()->hasName()) {
+                    call_path_string = "@" + inst->getFunction()->getName().str() + "():" + call_path_string;
                 } else {
-                    call_path_string += "(no-debug-line)";
+                    call_path_string = "@undef_func():" + call_path_string;
                 }
             } else {
-                call_path_string = "(no-debug-scope):";
+                call_path_string = "(no-debug-scope):" + call_path_string;
             }
+
+            if (debugLoc.getInlinedAt()) {
+                call_path_string = " -> " + call_path_string;
+            }
+
+            debugLoc = debugLoc.getInlinedAt();
         }
+
+        call_path_string += llvm::formatv(", nesting_level={0}", 
+                                    call_path_size);
     } else {
-        call_path_string = "(no-debug-info)";
+        if (debugLoc->getScope()) {
+            if (!debugLoc->getScope()->getName().empty()) {
+                call_path_string += "@" + debugLoc->getScope()->getName().str() + "():";
+            } else if (inst->getFunction() && inst->getFunction()->hasName()) {
+                call_path_string += "@" + inst->getFunction()->getName().str() + "():";
+            } else {
+                call_path_string += "@undef_func():";
+            }
+
+            if (!debugLoc->getScope()->getFilename().empty()) {
+                call_path_string += debugLoc->getScope()->getFilename().str();
+            } else {
+                call_path_string += "no-debug-directory";
+            }
+
+            if (debugLoc->getLine()) {
+                call_path_string += " +" + std::to_string(debugLoc->getLine());
+            } else {
+                call_path_string += "(no-debug-line -- may be defined)";
+            }
+        } else {
+            call_path_string = "(no-debug-scope):";
+        }
     }
 
     return call_path_string;
@@ -393,6 +396,9 @@ std::string getCallPathString(std::vector<CallInst*> call_path) {
                 
                 call_path_string += getDebugInfo(call_inst);
             }
+
+            call_path_string += llvm::formatv(", nesting_level={0}", 
+                                    call_path.size());
         }
     }
 
@@ -467,13 +473,6 @@ void handleDirectCallInst(CallInst* callInst, std::vector<CallInst*>call_path) {
         
         info.call_inst_type = isSupported ? callInstbyType[calledFunctionName.str()] : Op::UNKNOWN;
 
-        for (const auto& pair : syncInstbyType) {
-            if (calledFunctionName.contains(pair.first)) {
-                info.call_inst_type = pair.second;
-                break;
-            }
-        }
-
         if (callInst->getCalledFunction()->arg_size() > 0) {
             auto *calledFunctionFirstArg = callInst->getCalledFunction()->arg_begin();
             info.operand_scope = getOperandScope(callInst->getArgOperand(0));
@@ -545,7 +544,7 @@ void handleInst(Instruction* inst, std::vector<CallInst*>call_path = {}) {
         storeInstInfo.operand_scope = getOperandScope(SI->getPointerOperand());
         storeInstInfo.operand_type_list = getOperandTypes(SI->getPointerOperand());
         storeInstInfo.call_path = call_path;
-        storeInstInfo.call_path_string = (getCallPathString(call_path) != "") ? getCallPathString(call_path) : getDebugInfo(inst);
+        storeInstInfo.call_path_string = getCallPathString(call_path) + " -> " + getDebugInfo(inst);
         if (isa<ConstantPointerNull>(SI->getValueOperand())) {
             storeInstInfo.store_inst_type = Op::UPDATE_NULL;
         } else if (isa<Function>(SI->getValueOperand())) {

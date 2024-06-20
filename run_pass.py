@@ -106,19 +106,21 @@ def process_files(directory):
     return total_gadgets, lock_func_counts, unlock_func_counts
 
 if __name__ == '__main__':
-    file_count = count_files(ll_dir)
+    file_count = max(count_files(ll_dir), count_files(bc_dir))
 
     while True:
         status = run_task()
         processed_files = count_files(txt_dir)
         print_loading_bar(processed_files, file_count)
+        
         if status == 0:
             print("\nAll files have been processed successfully.")
             break
-        time.sleep(0.2)  # Delay before rerunning
 
     # Calculate the total number of SCUAF gadgets and lock function counts
     total_gadgets, lock_func_counts, unlock_func_counts = process_files(txt_dir)
+
+    mutex_func_counts = {}
 
     # Prepare the data to be saved
     data = {
