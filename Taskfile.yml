@@ -191,7 +191,7 @@ tasks:
             fi
 
             # Run the LLVM pass
-            timeout 1 llvm-project/build/bin/opt -debug-pass-manager -load-pass-plugin=./passes/syncprimitives.so -passes=sync-primitives -disable-output "$file" > "$output_file" 2>&1
+            timeout 10 llvm-project/build/bin/opt -debug-pass-manager -load-pass-plugin=./passes/syncprimitives.so -passes=sync-primitives -disable-output "$file" > "$output_file" 2>&1
 
             # Check if the process was killed due to OOM
             if [ $? -eq 137 ]; then

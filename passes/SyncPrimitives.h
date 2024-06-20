@@ -75,9 +75,22 @@ struct StoreInstInfo {
                     call_path_string);
             errs() << ", ";
 
-            errs() << llvm::formatv("{0}_call_path_length={1}", 
-                    report_class,
-                    call_path.size());
+            unsigned nesting_level = 0;
+
+            for (const auto& call_inst : call_path) {
+                auto debugLoc = call_inst->getDebugLoc();
+
+                if (debugLoc) {
+                    while (debugLoc.getInlinedAt()) {
+                        nesting_level++;
+                    }
+
+                    nesting_level++;
+                }
+            }
+
+            errs() << llvm::formatv("nesting_level={0}", 
+                    nesting_level);
             errs() << ", ";
 
             std::string typesStr = "";
@@ -118,9 +131,22 @@ struct CallInstInfo {
                 call_path_string);
         errs() << ", ";
 
-        errs() << llvm::formatv("{0}_call_path_length={1}", 
-                report_class,
-                call_path.size());
+        unsigned nesting_level = 0;
+
+        for (const auto& call_inst : call_path) {
+            auto debugLoc = call_inst->getDebugLoc();
+
+            if (debugLoc) {
+                while (debugLoc.getInlinedAt()) {
+                    nesting_level++;
+                }
+
+                nesting_level++;
+            }
+        }
+
+        errs() << llvm::formatv("nesting_level={0}", 
+                nesting_level);
         errs() << ", ";
 
         std::string typesStr = "";

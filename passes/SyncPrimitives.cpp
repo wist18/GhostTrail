@@ -315,11 +315,7 @@ std::string getDebugInfo(llvm::Instruction *inst) {
     std::string call_path_string = "";
 
     if (debugLoc.getInlinedAt()) {
-
-        unsigned call_path_size = 0;
-
         while (debugLoc) {
-            call_path_size++;
             
             if (debugLoc->getScope()) {
 
@@ -349,9 +345,6 @@ std::string getDebugInfo(llvm::Instruction *inst) {
 
             debugLoc = debugLoc.getInlinedAt();
         }
-
-        call_path_string += llvm::formatv(", nesting_level={0}", 
-                                    call_path_size);
     } else {
         if (debugLoc->getScope()) {
             if (!debugLoc->getScope()->getName().empty()) {
@@ -396,9 +389,6 @@ std::string getCallPathString(std::vector<CallInst*> call_path) {
                 
                 call_path_string += getDebugInfo(call_inst);
             }
-
-            call_path_string += llvm::formatv(", nesting_level={0}", 
-                                    call_path.size());
         }
     }
 
@@ -459,7 +449,7 @@ std::vector<std::string> getOperandTypes(Value* operandValue) {
         }
     }
 
-    std::reverse(operandTypes.begin(), operandTypes.end());
+    // std::reverse(operandTypes.begin(), operandTypes.end());
     return operandTypes;
 }
 
@@ -677,7 +667,7 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                                             if (dominatesUnlock) {
                                                                 FreeGadget freeGadget;
                                                                 freeGadget.report_class = REPORT_CLASS_GUARDED_FREE_NULL;
-                                                                freeGadget.additional_report_info = "";
+                                                                freeGadget.additional_report_info = getCallPathString(update.call_path);
                                                                 freeGadget.callInstInfo = free;
                                                                 freeGadget.storeInstInfo = update;
                                                                 criticalRegion.free_gadgets.emplace_back(freeGadget);
@@ -720,7 +710,7 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                                             if (dominatesUnlock) {
                                                                 FreeGadget freeGadget;
                                                                 freeGadget.report_class = REPORT_CLASS_GUARDED_FREE_VAL;
-                                                                freeGadget.additional_report_info = "";
+                                                                freeGadget.additional_report_info = getCallPathString(update.call_path);
                                                                 freeGadget.callInstInfo = free;
                                                                 freeGadget.storeInstInfo = update;
                                                                 criticalRegion.free_gadgets.emplace_back(freeGadget);
@@ -757,7 +747,7 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                                             if (dominatesUnlock) {
                                                                 FreeGadget freeGadget;
                                                                 freeGadget.report_class = REPORT_CLASS_GUARDED_FREE_LIST_DEL;
-                                                                freeGadget.additional_report_info = "";
+                                                                freeGadget.additional_report_info = getCallPathString(update.call_path);;
                                                                 freeGadget.callInstInfo = free;
                                                                 // add aditional info
                                                                 criticalRegion.free_gadgets.emplace_back(freeGadget);
@@ -790,7 +780,7 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                 if (dominatesUnlock) {
                                     UseGadget useGadget;
                                     useGadget.report_class = REPORT_CLASS_FPTR_COPY;
-                                    useGadget.additional_report_info = "";
+                                    useGadget.additional_report_info = getCallPathString(use.call_path);;
                                     useGadget.storeInstInfo = use;
                                     criticalRegion.use_gadgets.emplace_back(useGadget);   
                                     reportedStoreInstructions[Op::FPTR_COPY].emplace_back(use);
@@ -901,17 +891,19 @@ PreservedAnalyses SyncPrimitivesPass::run(Module &M, ModuleAnalysisManager &MAM)
         }
 
         for (const auto& useGadget : criticalRegion.use_gadgets) {
-            bool isDuplicate = false;
+            if (useGadget.report_class == REPORT_CLASS_FPTR_CALL) {
+                bool isDuplicate = false;
 
-            for (const auto& other : reportedUseGadgets) {
-                if (useGadget == other) {
-                    isDuplicate = true;
+                for (const auto& other : reportedUseGadgets) {
+                    if (useGadget == other) {
+                        isDuplicate = true;
+                    }
                 }
-            }
 
-            if (!isDuplicate) {
-                uniqueUseGadgets++;
-                reportedUseGadgets.emplace_back(useGadget);
+                if (!isDuplicate) {
+                    uniqueUseGadgets++;
+                    reportedUseGadgets.emplace_back(useGadget);
+                }
             }
         }
 
