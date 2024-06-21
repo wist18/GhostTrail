@@ -377,19 +377,8 @@ std::string getDebugInfo(llvm::Instruction *inst) {
 std::string getCallPathString(std::vector<CallInst*> call_path) {
     std::string call_path_string = "";
 
-    if (!call_path.empty() && call_path.back()) {
-
-        if (call_path.back()->getDebugLoc() && call_path.back()->getDebugLoc().getInlinedAt()) {
-            call_path_string = getDebugInfo(call_path.back());
-        } else {
-            for (const auto& call_inst : call_path) {
-                if (call_path_string != "") {
-                    call_path_string += " -> ";
-                }
-                
-                call_path_string += getDebugInfo(call_inst);
-            }
-        }
+    for (const auto& call_inst : call_path) {
+        call_path_string += getDebugInfo(call_inst);
     }
 
     return call_path_string;
@@ -449,7 +438,6 @@ std::vector<std::string> getOperandTypes(Value* operandValue) {
         }
     }
 
-    std::reverse(operandTypes.begin(), operandTypes.end());
     return operandTypes;
 }
 
@@ -534,7 +522,7 @@ void handleInst(Instruction* inst, std::vector<CallInst*>call_path = {}) {
         storeInstInfo.operand_scope = getOperandScope(SI->getPointerOperand());
         storeInstInfo.operand_type_list = getOperandTypes(SI->getPointerOperand());
         storeInstInfo.call_path = call_path;
-        storeInstInfo.call_path_string = getCallPathString(call_path) + " -> " + getDebugInfo(inst);
+        storeInstInfo.call_path_string = getCallPathString(call_path) + " -> " + getDebugInfo(SI);
         if (isa<ConstantPointerNull>(SI->getValueOperand())) {
             storeInstInfo.store_inst_type = Op::UPDATE_NULL;
         } else if (isa<Function>(SI->getValueOperand())) {
@@ -667,7 +655,7 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                                             if (dominatesUnlock) {
                                                                 FreeGadget freeGadget;
                                                                 freeGadget.report_class = REPORT_CLASS_GUARDED_FREE_NULL;
-                                                                freeGadget.additional_report_info = getCallPathString(update.call_path);
+                                                                freeGadget.additional_report_info = llvm::formatv("update_pos={0}", getDebugInfo(update.store_inst));
                                                                 freeGadget.callInstInfo = free;
                                                                 freeGadget.storeInstInfo = update;
                                                                 criticalRegion.free_gadgets.emplace_back(freeGadget);
@@ -710,7 +698,7 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                                             if (dominatesUnlock) {
                                                                 FreeGadget freeGadget;
                                                                 freeGadget.report_class = REPORT_CLASS_GUARDED_FREE_VAL;
-                                                                freeGadget.additional_report_info = getCallPathString(update.call_path);
+                                                                freeGadget.additional_report_info = llvm::formatv("update_pos={0}", getDebugInfo(update.store_inst));
                                                                 freeGadget.callInstInfo = free;
                                                                 freeGadget.storeInstInfo = update;
                                                                 criticalRegion.free_gadgets.emplace_back(freeGadget);
@@ -747,7 +735,7 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                                             if (dominatesUnlock) {
                                                                 FreeGadget freeGadget;
                                                                 freeGadget.report_class = REPORT_CLASS_GUARDED_FREE_LIST_DEL;
-                                                                freeGadget.additional_report_info = getCallPathString(update.call_path);;
+                                                                freeGadget.additional_report_info = llvm::formatv("update_pos={0}", getDebugInfo(update.call_path.back()));
                                                                 freeGadget.callInstInfo = free;
                                                                 // add aditional info
                                                                 criticalRegion.free_gadgets.emplace_back(freeGadget);
@@ -780,7 +768,7 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                 if (dominatesUnlock) {
                                     UseGadget useGadget;
                                     useGadget.report_class = REPORT_CLASS_FPTR_COPY;
-                                    useGadget.additional_report_info = getCallPathString(use.call_path);;
+                                    useGadget.additional_report_info = llvm::formatv("update_pos={0}", getDebugInfo(use.store_inst));
                                     useGadget.storeInstInfo = use;
                                     criticalRegion.use_gadgets.emplace_back(useGadget);   
                                     reportedStoreInstructions[Op::FPTR_COPY].emplace_back(use);
@@ -873,7 +861,8 @@ PreservedAnalyses SyncPrimitivesPass::run(Module &M, ModuleAnalysisManager &MAM)
     for (const auto& criticalRegion : criticalRegions) {
 
         unsigned uniqueFreeGadgets = 0;
-        unsigned uniqueUseGadgets = 0;
+        unsigned uniqueUseFptrCallGadgets = 0;
+        unsigned uniqueUseFptrCopyGadgets = 0;
 
         for (const auto& freeGadget : criticalRegion.free_gadgets) {
             bool isDuplicate = false;
@@ -891,23 +880,30 @@ PreservedAnalyses SyncPrimitivesPass::run(Module &M, ModuleAnalysisManager &MAM)
         }
 
         for (const auto& useGadget : criticalRegion.use_gadgets) {
-            if (true) {
-                bool isDuplicate = false;
+            bool isDuplicate = false;
 
-                for (const auto& other : reportedUseGadgets) {
-                    if (useGadget == other) {
-                        isDuplicate = true;
-                    }
+            for (const auto& other : reportedUseGadgets) {
+                if (useGadget == other) {
+                    isDuplicate = true;
+                }
+            }
+
+            if (!isDuplicate) {
+                if (useGadget.report_class == REPORT_CLASS_FPTR_CALL) {
+                    uniqueUseFptrCallGadgets++;
+                } else if (useGadget.report_class == REPORT_CLASS_FPTR_COPY) {
+                    uniqueUseFptrCopyGadgets++;
                 }
 
-                if (!isDuplicate) {
-                    uniqueUseGadgets++;
-                    reportedUseGadgets.emplace_back(useGadget);
-                }
+                reportedUseGadgets.emplace_back(useGadget);
             }
         }
 
-        reportedScuafGadgets += uniqueFreeGadgets * uniqueUseGadgets;
+        // This check makes sure that we have a Free gadget, Use gagdet and copy.
+
+        if (uniqueUseFptrCopyGadgets) {
+            reportedScuafGadgets += uniqueFreeGadgets * uniqueUseFptrCallGadgets;
+        }
     }
 
     printCriticalRegionsInfo();

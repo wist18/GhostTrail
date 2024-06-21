@@ -80,12 +80,12 @@ struct StoreInstInfo {
             for (const auto& call_inst : call_path) {
                 auto debugLoc = call_inst->getDebugLoc();
 
-                if (debugLoc) {
-                    while (debugLoc.getInlinedAt()) {
+                while (debugLoc) {
+                    if (debugLoc.getLine()) {
                         nesting_level++;
                     }
-
-                    nesting_level++;
+                    
+                    debugLoc = debugLoc.getInlinedAt();
                 }
             }
 
@@ -131,22 +131,23 @@ struct CallInstInfo {
                 call_path_string);
         errs() << ", ";
 
-        unsigned nesting_level = 0;
+        // 1 is deducted since every call isntruction will add 1 to the nesting level, but the samllest nesting level is 0
+        unsigned nesting_level = -1;
 
         for (const auto& call_inst : call_path) {
             auto debugLoc = call_inst->getDebugLoc();
 
-            if (debugLoc) {
-                while (debugLoc.getInlinedAt()) {
+            while (debugLoc) {
+                if (debugLoc.getLine()) {
                     nesting_level++;
                 }
-
-                nesting_level++;
+                
+                debugLoc = debugLoc.getInlinedAt();
             }
         }
-
+        
         errs() << llvm::formatv("nesting_level={0}", 
-                nesting_level);
+                nesting_level); 
         errs() << ", ";
 
         std::string typesStr = "";
@@ -162,27 +163,12 @@ struct CallInstInfo {
         std::string func_name = "unnamed_function";
 
         if (!call_path.empty()) {
-            
-            if (call_path.back()->isIndirectCall() && call_path.back()->getCalledOperand()) {
-                auto *calledOperand = dyn_cast<LoadInst>(call_path.back()->getCalledOperand());
-
-                if (calledOperand && calledOperand->getPointerOperand() && calledOperand->getPointerOperand()->hasName()) {
-                    func_name = calledOperand->getPointerOperand()->getName().str();
-                }
-                
-            } else if (!call_path.back()->isIndirectCall() && call_path.back()->getCalledFunction()) {
-                if (call_path.back()->getCalledFunction()->hasName()) {
-                    func_name = call_path.back()->getCalledFunction()->getName().str();
-                }
-            }
-        }
-
-        /*
-        if (!call_path.empty()) {
             if (call_path.back()->isIndirectCall()) {
-                Value *calledValue = call_path.back()->getCalledOperand()->stripPointerCasts();
+                Value *calledValue = call_path.back()->getCalledOperand();
                 if (calledValue->hasName()) {
                     func_name = calledValue->getName().str();
+                } else {
+                    func_name = "indirect function found (manual inspection is needed to find the name)";
                 }
             } else {
                 Function *calledFunction = call_path.back()->getCalledFunction();
@@ -190,7 +176,7 @@ struct CallInstInfo {
                     func_name = calledFunction->getName().str();
                 }
             }
-        }*/
+        }
 
         errs() << llvm::formatv("{0}_func={1}", 
                     report_class,
