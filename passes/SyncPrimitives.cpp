@@ -853,6 +853,8 @@ PreservedAnalyses SyncPrimitivesPass::run(Module &M, ModuleAnalysisManager &MAM)
     buildCriticalRegions(M, MAM);
 
     unsigned reportedScuafGadgets = 0;
+    unsigned tmp_reportedScuafGadgets_1 = 0;
+    unsigned tmp_reportedScuafGadgets_2 = 0;
 
     // For every critical region build, ignore duplicate Free/Use Gadgets.
     // If a Free/Use Gadget pair is unique, match them based on operand type.
@@ -904,11 +906,15 @@ PreservedAnalyses SyncPrimitivesPass::run(Module &M, ModuleAnalysisManager &MAM)
         if (uniqueUseFptrCopyGadgets) {
             reportedScuafGadgets += uniqueFreeGadgets * uniqueUseFptrCallGadgets;
         }
+        tmp_reportedScuafGadgets_1 += uniqueFreeGadgets * uniqueUseFptrCallGadgets;
+        tmp_reportedScuafGadgets_2 += uniqueFreeGadgets * (uniqueUseFptrCallGadgets + uniqueUseFptrCopyGadgets);
     }
 
     printCriticalRegionsInfo();
 
     errs() << "[!] Build completed!\n";
+    errs() << llvm::formatv("\ntest_tmp1: {0}\n", tmp_reportedScuafGadgets_1);
+    errs() << llvm::formatv("\ntest_tmp2: {0}\n", tmp_reportedScuafGadgets_2);
     errs() << llvm::formatv("\nFound: {0} SCUAF gadgets\n", reportedScuafGadgets);
 
     return PreservedAnalyses::all();
