@@ -4,231 +4,158 @@
     "ll_dir": "linux-6.9.1-ll",
     "txt_dir": "passes-out",
     "file_count": 23804,
-    "scuaf_gadgets": 13427,
+    "scuaf_gadgets": 1919,
     "lock_func_counts": {
-        "total": 1218981,
+        "total": 3206,
         "types": {
-            "mutex_lock_nested": 291267,
-            "_raw_spin_lock_irqsave": 353643,
-            "_raw_spin_lock": 268134,
-            "down_write": 30269,
-            "down_read": 19407,
-            "_raw_spin_lock_irq": 61487,
-            "_raw_spin_trylock": 1086,
-            "_raw_spin_lock_bh": 107197,
-            "down_write_nested": 587,
-            "_raw_write_lock": 2199,
-            "_raw_read_lock": 5284,
-            "mutex_trylock": 1047,
-            "mutex_lock_killable_nested": 284,
-            "mutex_lock_interruptible_nested": 11059,
-            "_raw_write_lock_bh": 3288,
-            "down_read_nested": 281,
-            "down_read_trylock": 570,
-            "_raw_spin_lock_irqsave_nested": 1072,
-            "_raw_spin_lock_nested": 18139,
-            "down_write_killable": 3081,
-            "down_read_interruptible": 314,
-            "down": 23818,
-            "down_read_killable": 261,
-            "_raw_write_lock_irq": 5136,
-            "_raw_read_lock_irqsave": 4453,
-            "_raw_write_lock_irqsave": 2026,
-            "_raw_read_lock_bh": 2340,
-            "_raw_read_lock_irq": 213,
-            "down_write_trylock": 125,
-            "percpu_down_write": 252,
-            "percpu_down_read": 161,
-            "down_interruptible": 289,
-            "down_timeout": 82,
-            "down_trylock": 79,
-            "down_killable": 5,
-            "_raw_write_trylock": 10,
-            "_raw_read_trylock": 36
+            "mutex_lock_nested": 2413,
+            "_raw_spin_lock_irqsave": 135,
+            "_raw_spin_lock": 183,
+            "down_read": 15,
+            "down_write": 99,
+            "mutex_lock_interruptible_nested": 20,
+            "_raw_write_lock_irqsave": 1,
+            "_raw_read_lock": 3,
+            "_raw_spin_lock_irq": 12,
+            "down_trylock": 1,
+            "_raw_spin_lock_bh": 284,
+            "_raw_spin_trylock": 36,
+            "_raw_write_lock_irq": 1,
+            "_raw_spin_lock_nested": 2,
+            "down_read_killable": 1
         },
         "spin_lock": {
-            "total": 809672,
+            "total": 616,
             "types": {
-                "_raw_spin_lock_irqsave": 353643,
-                "_raw_spin_lock": 268134,
-                "_raw_spin_lock_irq": 61487,
-                "_raw_spin_lock_bh": 107197,
-                "_raw_spin_lock_irqsave_nested": 1072,
-                "_raw_spin_lock_nested": 18139
+                "_raw_spin_lock_irqsave": 135,
+                "_raw_spin_lock": 183,
+                "_raw_spin_lock_irq": 12,
+                "_raw_spin_lock_bh": 284,
+                "_raw_spin_lock_nested": 2
             }
         },
         "spin_trylock": {
-            "total": 1086,
+            "total": 36,
             "types": {
-                "_raw_spin_trylock": 1086
+                "_raw_spin_trylock": 36
             }
         },
         "read_lock": {
-            "total": 12290,
+            "total": 3,
             "types": {
-                "_raw_read_lock": 5284,
-                "_raw_read_lock_irqsave": 4453,
-                "_raw_read_lock_bh": 2340,
-                "_raw_read_lock_irq": 213
+                "_raw_read_lock": 3
             }
         },
         "read_trylock": {
-            "total": 606,
-            "types": {
-                "down_read_trylock": 570,
-                "_raw_read_trylock": 36
-            }
+            "total": 0,
+            "types": {}
         },
         "write_lock": {
-            "total": 12649,
+            "total": 2,
             "types": {
-                "_raw_write_lock": 2199,
-                "_raw_write_lock_bh": 3288,
-                "_raw_write_lock_irq": 5136,
-                "_raw_write_lock_irqsave": 2026
+                "_raw_write_lock_irqsave": 1,
+                "_raw_write_lock_irq": 1
             }
         },
         "write_trylock": {
-            "total": 135,
-            "types": {
-                "down_write_trylock": 125,
-                "_raw_write_trylock": 10
-            }
+            "total": 0,
+            "types": {}
         },
         "down_read": {
-            "total": 20994,
+            "total": 16,
             "types": {
-                "down_read": 19407,
-                "down_read_nested": 281,
-                "down_read_trylock": 570,
-                "down_read_interruptible": 314,
-                "down_read_killable": 261,
-                "percpu_down_read": 161
+                "down_read": 15,
+                "down_read_killable": 1
             }
         },
         "down_write": {
-            "total": 34314,
+            "total": 99,
             "types": {
-                "down_write": 30269,
-                "down_write_nested": 587,
-                "down_write_killable": 3081,
-                "down_write_trylock": 125,
-                "percpu_down_write": 252
+                "down_write": 99
             }
         },
         "mutex_lock": {
-            "total": 302610,
+            "total": 2433,
             "types": {
-                "mutex_lock_nested": 291267,
-                "mutex_lock_killable_nested": 284,
-                "mutex_lock_interruptible_nested": 11059
+                "mutex_lock_nested": 2413,
+                "mutex_lock_interruptible_nested": 20
             }
         },
         "mutex_trylock": {
-            "total": 1047,
-            "types": {
-                "mutex_trylock": 1047
-            }
+            "total": 0,
+            "types": {}
         },
         "down": {
-            "total": 79581,
+            "total": 116,
             "types": {
-                "down_write": 30269,
-                "down_read": 19407,
-                "down_write_nested": 587,
-                "down_read_nested": 281,
-                "down_read_trylock": 570,
-                "down_write_killable": 3081,
-                "down_read_interruptible": 314,
-                "down": 23818,
-                "down_read_killable": 261,
-                "down_write_trylock": 125,
-                "percpu_down_write": 252,
-                "percpu_down_read": 161,
-                "down_interruptible": 289,
-                "down_timeout": 82,
-                "down_trylock": 79,
-                "down_killable": 5
+                "down_read": 15,
+                "down_write": 99,
+                "down_trylock": 1,
+                "down_read_killable": 1
             }
         }
     },
     "unlock_func_counts": {
-        "total": 1218980,
+        "total": 3206,
         "types": {
-            "mutex_unlock": 308359,
-            "_raw_spin_unlock_irqrestore": 354118,
-            "_raw_spin_unlock": 281619,
-            "up_write": 34445,
-            "up_read": 20955,
-            "_raw_spin_unlock_irq": 61333,
-            "_raw_spin_unlock_bh": 107350,
-            "_raw_write_unlock": 2191,
-            "_raw_read_unlock": 5335,
-            "_raw_write_unlock_bh": 3236,
-            "up": 25452,
-            "_raw_write_unlock_irq": 5136,
-            "_raw_read_unlock_irqrestore": 4453,
-            "_raw_write_unlock_irqrestore": 2034,
-            "_raw_read_unlock_bh": 2338,
-            "_raw_read_unlock_irq": 213,
-            "percpu_up_write": 252,
-            "percpu_up_read": 161
+            "mutex_unlock": 2454,
+            "_raw_spin_unlock_irqrestore": 181,
+            "_raw_spin_unlock": 153,
+            "up_read": 18,
+            "up_write": 97,
+            "_raw_write_unlock_irqrestore": 1,
+            "_raw_read_unlock": 3,
+            "_raw_spin_unlock_irq": 13,
+            "up": 1,
+            "_raw_spin_unlock_bh": 284,
+            "_raw_write_unlock_irq": 1
         },
         "spin_unlock": {
-            "total": 804420,
+            "total": 631,
             "types": {
-                "_raw_spin_unlock_irqrestore": 354118,
-                "_raw_spin_unlock": 281619,
-                "_raw_spin_unlock_irq": 61333,
-                "_raw_spin_unlock_bh": 107350
+                "_raw_spin_unlock_irqrestore": 181,
+                "_raw_spin_unlock": 153,
+                "_raw_spin_unlock_irq": 13,
+                "_raw_spin_unlock_bh": 284
             }
         },
         "read_unlock": {
-            "total": 12339,
+            "total": 3,
             "types": {
-                "_raw_read_unlock": 5335,
-                "_raw_read_unlock_irqrestore": 4453,
-                "_raw_read_unlock_bh": 2338,
-                "_raw_read_unlock_irq": 213
+                "_raw_read_unlock": 3
             }
         },
         "write_unlock": {
-            "total": 12597,
+            "total": 2,
             "types": {
-                "_raw_write_unlock": 2191,
-                "_raw_write_unlock_bh": 3236,
-                "_raw_write_unlock_irq": 5136,
-                "_raw_write_unlock_irqrestore": 2034
+                "_raw_write_unlock_irqrestore": 1,
+                "_raw_write_unlock_irq": 1
             }
         },
         "up_read": {
-            "total": 21116,
+            "total": 18,
             "types": {
-                "up_read": 20955,
-                "percpu_up_read": 161
+                "up_read": 18
             }
         },
         "up_write": {
-            "total": 34697,
+            "total": 97,
             "types": {
-                "up_write": 34445,
-                "percpu_up_write": 252
+                "up_write": 97
             }
         },
         "mutex_unlock": {
-            "total": 308359,
+            "total": 2454,
             "types": {
-                "mutex_unlock": 308359
+                "mutex_unlock": 2454
             }
         },
         "up": {
-            "total": 81265,
+            "total": 116,
             "types": {
-                "up_write": 34445,
-                "up_read": 20955,
-                "up": 25452,
-                "percpu_up_write": 252,
-                "percpu_up_read": 161
+                "up_read": 18,
+                "up_write": 97,
+                "up": 1
             }
         }
     }

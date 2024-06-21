@@ -832,10 +832,12 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
 }
 
 void printCriticalRegionsInfo() {
-    int regionIndex = 1;
+    int regionIndex = 0;
     for (const auto& criticalRegion : criticalRegions) {
-        errs() << llvm::formatv("Critical Region #{0} ", regionIndex++);
-        criticalRegion.print();
+        if (criticalRegion.free_gadgets.size() && criticalRegion.use_gadgets.size()) {
+            errs() << llvm::formatv("Critical Region #{0} ", ++regionIndex);
+            criticalRegion.print();
+        }
     }
 }
 
