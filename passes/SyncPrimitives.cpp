@@ -560,7 +560,7 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
             }
         }
 
-        for (const auto &lock_sync : reportedCallInstructions[Op::LOCK]) {
+        for (auto &lock_sync : reportedCallInstructions[Op::LOCK]) {
             std::vector<CallInstInfo> matching_unlocks;
 
             // Get matching unlocks on operand type + scope with the locks above
@@ -601,25 +601,43 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                 }
             }
 
-            for (const auto& unlock_sync : most_dominating_unlocks) {
+            for (auto& unlock_sync : most_dominating_unlocks) {
+
+                /*while (lock_sync.call_path.front() == unlock_sync.call_path.front()) {
+                    lock_sync.call_path.erase(lock_sync.call_path.begin());
+                    unlock_sync.call_path.erase(unlock_sync.call_path.begin());
+                }*/
+
+                /*if (lock_sync.call_path.front()->getFunction() != unlock_sync.call_path.front()->getFunction()) {
+                    continue;
+                }*/
+
                 for (const auto& lock_call_path_inst : lock_sync.call_path) {
                     for (const auto& unlock_call_path_inst : unlock_sync.call_path) {
                         if (dominates(lock_call_path_inst, unlock_call_path_inst, M, MAM) || postdominates(unlock_call_path_inst, lock_call_path_inst, M, MAM)) {
                             CriticalRegionInfo criticalRegion;
-
                             criticalRegion.lock_sync = lock_sync;
                             criticalRegion.unlock_sync = unlock_sync;
                             criticalRegion.target_func_ret_type = solveTypeName(lock_call_path_inst->getFunction()->getReturnType()).str();
                             criticalRegion.target_func = lock_call_path_inst->getFunction()->getName().str();
 
-                            for (const auto& free : callInstructions[Op::FREE]) {
-                                for (const auto& free_call_path_inst : free.call_path) {
+                            for (auto& free : callInstructions[Op::FREE]) {
+
+                                /*for (unsigned i = free.call_path.size()-1; i >=0; i--) {
+                                    if (free.call_path.at(i)->getFunction() == lock_call_path_inst->getFunction()) {
+                                        free.call_path.erase(free.call_path.begin(), free.call_path.begin()+i);
+                                        break;
+                                    }
+                                }*/
+
+                                for (auto& free_call_path_inst : free.call_path) {
                                     if (dominates(lock_call_path_inst, free_call_path_inst, M, MAM) &&
                                         dominates(free_call_path_inst, unlock_call_path_inst, M, MAM)) {
 
                                         // REPORT GUARDED_FREE(ptr)
                                         FreeGadget freeGadget;
                                         freeGadget.callInstInfo = free;
+
                                         freeGadget.report_class = REPORT_CLASS_GUARDED_FREE;
                                         criticalRegion.free_gadgets.emplace_back(freeGadget);
                                         reportedCallInstructions[Op::FREE].emplace_back(free);
@@ -751,7 +769,13 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                             }
 
                             // REPORT GUARDED FPTR COPY
-                            for (const auto& use : storeInstructions[Op::FPTR_COPY]) {
+                            for (auto& use : storeInstructions[Op::FPTR_COPY]) {
+                                /*for (unsigned i = use.call_path.size()-1; i >=0; i--) {
+                                    if (use.call_path.at(i)->getFunction() == lock_call_path_inst->getFunction()) {
+                                        use.call_path.erase(use.call_path.begin(), use.call_path.begin()+i);
+                                        break;
+                                    }
+                                }*/
                                 bool dominatesUnlock = false;
 
                                 if (dominates(use.store_inst, unlock_call_path_inst, M, MAM)) {
@@ -776,7 +800,13 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                             }
 
                             // REPORT GUARDED FPTR CALL
-                            for (const auto& use : callInstructions[Op::FPTR_CALL]) {
+                            for (auto& use : callInstructions[Op::FPTR_CALL]) {
+                                /*for (unsigned i = use.call_path.size()-1; i >=0; i--) {
+                                    if (use.call_path.at(i)->getFunction() == lock_call_path_inst->getFunction()) {
+                                        use.call_path.erase(use.call_path.begin(), use.call_path.begin()+i);
+                                        break;
+                                    }
+                                }*/
                                 bool dominatesUnlock = false;
 
                                 for (const auto& use_call_path_inst : use.call_path) {
@@ -797,9 +827,13 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                             }
 
                             criticalRegions.emplace_back(criticalRegion);
+                            goto new_lock;
                         }
                     }
                 }
+
+                new_lock:
+                continue;
             }
         }
 
