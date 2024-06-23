@@ -49,21 +49,33 @@ def extract_gadgets(line):
 
 # Function to extract lock function types from a single line
 def extract_lock_func(line):
-    match = re.search(r'\block_func=(\w+)', line)
-    if match:
-        return match.group(1)
-    return None
+    lock_func_match = re.search(r'\block_func=(\w+)', line)
+    nesting_level_match = re.search(r'nesting_level=(\d+)', line)
+    
+    lock_func = lock_func_match.group(1) if lock_func_match else None
+    nesting_level = int(nesting_level_match.group(1)) if nesting_level_match else None
+    
+    return lock_func, nesting_level
 
 # Function to extract unlock function types from a single line
 def extract_unlock_func(line):
-    match = re.search(r'\bunlock_func=(\w+)', line)
-    if match:
-        return match.group(1)
-    return None
+    lock_func_match = re.search(r'\bunlock_func=(\w+)', line)
+    nesting_level_match = re.search(r'nesting_level=(\d+)', line)
+    
+    lock_func = lock_func_match.group(1) if lock_func_match else None
+    nesting_level = int(nesting_level_match.group(1)) if nesting_level_match else None
+    
+    return lock_func, nesting_level
 
-def update_func_counts(func_counts, func, patterns):
+def update_func_counts(func_counts, func, patterns, nesting_level):
     if func:
         func_counts['total'] += 1
+
+        if nesting_level in func_counts['nesting_level']:
+            func_counts['nesting_level'][nesting_level] += 1
+        else:
+            func_counts['nesting_level'][nesting_level] = 1
+
         if func in func_counts['types']:
             func_counts['types'][func] += 1
         else:
@@ -77,17 +89,23 @@ def update_func_counts(func_counts, func, patterns):
                 else:
                     func_counts[key]['types'][func] = 1
 
+                if nesting_level in func_counts[key]['nesting_level']:
+                    func_counts[key]['nesting_level'][nesting_level] += 1
+                else:
+                    func_counts[key]['nesting_level'][nesting_level] = 1
+                break
+
 # Function to process all files in a directory and subdirectories to sum up the SCUAF gadgets and lock/unlock function types
 def process_files(directory):
     total_gadgets = 0
-    lock_func_counts = {'total': 0, 'types': {}}
-    unlock_func_counts = {'total': 0, 'types': {}}
+    lock_func_counts = {'total': 0, 'nesting_level': {}, 'types': {}}
+    unlock_func_counts = {'total': 0, 'nesting_level': {}, 'types': {}}
 
     for key in patterns['lock']:
-        lock_func_counts[key] = {'total': 0, 'types': {}}
+        lock_func_counts[key] = {'total': 0, 'nesting_level': {}, 'types': {}}
 
     for key in patterns['unlock']:
-        unlock_func_counts[key] = {'total': 0, 'types': {}}
+        unlock_func_counts[key] = {'total': 0, 'nesting_level': {}, 'types': {}}
 
     for root, _, files in os.walk(directory):
         for filename in files:
@@ -97,11 +115,11 @@ def process_files(directory):
                     for line in file:
                         total_gadgets += extract_gadgets(line)
                         
-                        lock_func = extract_lock_func(line)
-                        update_func_counts(lock_func_counts, lock_func, patterns['lock'])
+                        lock_func, lock_nesting_level = extract_lock_func(line)
+                        update_func_counts(lock_func_counts, lock_func, patterns['lock'], lock_nesting_level)
 
-                        unlock_func = extract_unlock_func(line)
-                        update_func_counts(unlock_func_counts, unlock_func, patterns['unlock'])
+                        unlock_func, unlock_nesting_level = extract_unlock_func(line)
+                        update_func_counts(unlock_func_counts, unlock_func, patterns['unlock'], unlock_nesting_level)
 
     return total_gadgets, lock_func_counts, unlock_func_counts
 
@@ -122,6 +140,11 @@ if __name__ == '__main__':
 
     mutex_func_counts = {}
 
+    lock_func_counts["mutex_count"] = lock_func_counts["mutex_lock"]["total"] + lock_func_counts["mutex_trylock"]["total"]
+    lock_func_counts["spin_lock_count"] = lock_func_counts["spin_lock"]["total"] + lock_func_counts["spin_trylock"]["total"]
+    lock_func_counts["rw_spin_lock_count"] = lock_func_counts["read_lock"]["total"] + lock_func_counts["read_trylock"]["total"] + lock_func_counts["write_lock"]["total"] + lock_func_counts["write_trylock"]["total"]
+    lock_func_counts["semaphore_count"] = lock_func_counts["down"]["total"]
+    lock_func_counts["rw_semaphore_count"] = lock_func_counts["down_read"]["total"] + lock_func_counts["down_write"]["total"]
     # Prepare the data to be saved
     data = {
         'linux_version': linux_version,

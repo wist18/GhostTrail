@@ -329,14 +329,14 @@ std::string getDebugInfo(llvm::Instruction *inst) {
                     call_path_string = debugLoc->getScope()->getFilename().str() + call_path_string;
                 }
                 if (!debugLoc->getScope()->getName().empty()) {
-                    call_path_string = "@" + debugLoc->getScope()->getName().str() + "():" + call_path_string;
+                    call_path_string = "@" + debugLoc->getScope()->getName().str() + "(): " + call_path_string;
                 } else if (inst->getFunction() && inst->getFunction()->hasName()) {
-                    call_path_string = "@" + inst->getFunction()->getName().str() + "():" + call_path_string;
+                    call_path_string = "@" + inst->getFunction()->getName().str() + "(): " + call_path_string;
                 } else {
-                    call_path_string = "@undef_func():" + call_path_string;
+                    call_path_string = "@undef_func(): " + call_path_string;
                 }
             } else {
-                call_path_string = "(no-debug-scope):" + call_path_string;
+                call_path_string = "(no-debug-scope): " + call_path_string;
             }
 
             if (debugLoc.getInlinedAt()) {
@@ -378,6 +378,9 @@ std::string getCallPathString(std::vector<CallInst*> call_path) {
     std::string call_path_string = "";
 
     for (const auto& call_inst : call_path) {
+        if (call_path_string != "") {
+            call_path_string += " -> ";
+        }
         call_path_string += getDebugInfo(call_inst);
     }
 
@@ -535,6 +538,28 @@ void handleInst(Instruction* inst, std::vector<CallInst*>call_path = {}) {
     }
 }
 
+unsigned getNestingLevel(std::vector<CallInst*> call_path, std::string target_func) {
+    unsigned nesting_level = 0;
+
+    for (const auto& call_path_inst : call_path) {
+        auto debugLoc = call_path_inst->getDebugLoc();
+
+        while (debugLoc) {
+            if (debugLoc.getLine()) {
+                nesting_level++;
+            }
+            
+            debugLoc = debugLoc.getInlinedAt();
+        }
+
+        if (call_path_inst->getFunction() && call_path_inst->getFunction()->hasName() && call_path_inst->getFunction()->getName().str() == target_func) {
+            nesting_level = 0;
+        }
+    }
+
+    return nesting_level;
+}
+
 void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
 
     while(!callInstructions[Op::LOCK].empty() && !callInstructions[Op::UNLOCK].empty()) {
@@ -616,12 +641,16 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                     for (const auto& unlock_call_path_inst : unlock_sync.call_path) {
                         if (dominates(lock_call_path_inst, unlock_call_path_inst, M, MAM) || postdominates(unlock_call_path_inst, lock_call_path_inst, M, MAM)) {
                             CriticalRegionInfo criticalRegion;
+                            criticalRegion.target_func = lock_call_path_inst->getFunction()->getName().str();
+                            lock_sync.nesting_level = getNestingLevel(lock_sync.call_path, criticalRegion.target_func);
                             criticalRegion.lock_sync = lock_sync;
+                            unlock_sync.nesting_level = getNestingLevel(unlock_sync.call_path, criticalRegion.target_func);
                             criticalRegion.unlock_sync = unlock_sync;
                             criticalRegion.target_func_ret_type = solveTypeName(lock_call_path_inst->getFunction()->getReturnType()).str();
-                            criticalRegion.target_func = lock_call_path_inst->getFunction()->getName().str();
 
                             for (auto& free : callInstructions[Op::FREE]) {
+
+                                free.nesting_level = getNestingLevel(free.call_path, criticalRegion.target_func);
 
                                 /*for (unsigned i = free.call_path.size()-1; i >=0; i--) {
                                     if (free.call_path.at(i)->getFunction() == lock_call_path_inst->getFunction()) {
@@ -643,7 +672,7 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                         reportedCallInstructions[Op::FREE].emplace_back(free);
 
                                         // REPORT GUARDED_FREE(ptr) + ptr NULL assign
-                                        for (const auto& update : storeInstructions[Op::UPDATE_NULL] ) {
+                                        for (auto& update : storeInstructions[Op::UPDATE_NULL] ) {
                                             for (const auto& free_call_path_inst : free.call_path) {
                                                 if (update.operand_type_list == free.operand_type_list && update.operand_scope == free.operand_scope) {
                                                     bool isDominatedByFree = false;
@@ -686,7 +715,7 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                         }
 
                                         // REPORT GUARDED_FREE(ptr) + ptr VAL assign
-                                        for (const auto& update : storeInstructions[Op::UPDATE_VAL] ) {
+                                        for (auto& update : storeInstructions[Op::UPDATE_VAL] ) {
                                             for (const auto& free_call_path_inst : free.call_path) {
                                                 if (update.operand_type_list == free.operand_type_list && update.operand_scope == free.operand_scope) {
                                                     bool isDominatedByFree = false;
@@ -729,7 +758,8 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                         }
 
                                         // REPORT GUARDED_FREE(ptr) + list_del()
-                                        for (const auto& update : callInstructions[Op::LISTDEL] ) {
+                                        for (auto& update : callInstructions[Op::LISTDEL] ) {
+                                            update.nesting_level = getNestingLevel(update.call_path, criticalRegion.target_func);
                                             for (const auto& free_call_path_inst : free.call_path) {
                                                 if (update.operand_type_list == free.operand_type_list && update.operand_scope == free.operand_scope) {
                                                     bool isDominatedByFree = false;
@@ -776,6 +806,7 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                         break;
                                     }
                                 }*/
+
                                 bool dominatesUnlock = false;
 
                                 if (dominates(use.store_inst, unlock_call_path_inst, M, MAM)) {
@@ -807,6 +838,7 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                         break;
                                     }
                                 }*/
+                                use.nesting_level = getNestingLevel(use.call_path, criticalRegion.target_func);
                                 bool dominatesUnlock = false;
 
                                 for (const auto& use_call_path_inst : use.call_path) {

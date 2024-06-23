@@ -75,24 +75,6 @@ struct StoreInstInfo {
                     call_path_string);
             errs() << ", ";
 
-            unsigned nesting_level = 0;
-
-            for (const auto& call_inst : call_path) {
-                auto debugLoc = call_inst->getDebugLoc();
-
-                while (debugLoc) {
-                    if (debugLoc.getLine()) {
-                        nesting_level++;
-                    }
-                    
-                    debugLoc = debugLoc.getInlinedAt();
-                }
-            }
-
-            errs() << llvm::formatv("nesting_level={0}", 
-                    nesting_level);
-            errs() << ", ";
-
             std::string typesStr = "";
             for (const auto& type : operand_type_list) {
                 typesStr += " " + type;
@@ -120,6 +102,7 @@ struct CallInstInfo {
     std::vector<std::string> operand_type_list;
     std::vector<llvm::CallInst*> call_path;
     std::string call_path_string;
+    unsigned nesting_level;
     
     void print(std::string report_class) const {
         errs() << llvm::formatv("report_class={0}", 
@@ -132,22 +115,9 @@ struct CallInstInfo {
         errs() << ", ";
 
         // 1 is deducted since every call isntruction will add 1 to the nesting level, but the samllest nesting level is 0
-        unsigned nesting_level = -1;
-
-        for (const auto& call_inst : call_path) {
-            auto debugLoc = call_inst->getDebugLoc();
-
-            while (debugLoc) {
-                if (debugLoc.getLine()) {
-                    nesting_level++;
-                }
-                
-                debugLoc = debugLoc.getInlinedAt();
-            }
-        }
-        
-        errs() << llvm::formatv("nesting_level={0}", 
-                nesting_level); 
+        errs() << llvm::formatv("{0}_nesting_level={1}", 
+                    report_class,
+                    nesting_level);
         errs() << ", ";
 
         std::string typesStr = "";
