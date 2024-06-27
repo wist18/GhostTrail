@@ -499,7 +499,7 @@ void handleInirectCallInst(CallInst* callInst, std::vector<CallInst*>call_path) 
 void handleInst(Instruction* inst, std::vector<CallInst*>call_path = {}) {
 
     // Early exit for null pointers or unresolved indirect calls
-    if (!inst) {
+    if (!inst || call_path.size() > 8) {
         return;
     }
 
@@ -627,16 +627,6 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
             }
 
             for (auto& unlock_sync : most_dominating_unlocks) {
-
-                /*while (lock_sync.call_path.front() == unlock_sync.call_path.front()) {
-                    lock_sync.call_path.erase(lock_sync.call_path.begin());
-                    unlock_sync.call_path.erase(unlock_sync.call_path.begin());
-                }*/
-
-                /*if (lock_sync.call_path.front()->getFunction() != unlock_sync.call_path.front()->getFunction()) {
-                    continue;
-                }*/
-
                 for (const auto& lock_call_path_inst : lock_sync.call_path) {
                     for (const auto& unlock_call_path_inst : unlock_sync.call_path) {
                         if (dominates(lock_call_path_inst, unlock_call_path_inst, M, MAM) || postdominates(unlock_call_path_inst, lock_call_path_inst, M, MAM)) {
@@ -652,12 +642,9 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
 
                                 free.nesting_level = getNestingLevel(free.call_path, criticalRegion.target_func);
 
-                                /*for (unsigned i = free.call_path.size()-1; i >=0; i--) {
-                                    if (free.call_path.at(i)->getFunction() == lock_call_path_inst->getFunction()) {
-                                        free.call_path.erase(free.call_path.begin(), free.call_path.begin()+i);
-                                        break;
-                                    }
-                                }*/
+                                if (free.nesting_level > 5) {
+                                    break;
+                                }
 
                                 for (auto& free_call_path_inst : free.call_path) {
                                     if (dominates(lock_call_path_inst, free_call_path_inst, M, MAM) &&
@@ -760,6 +747,11 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                         // REPORT GUARDED_FREE(ptr) + list_del()
                                         for (auto& update : callInstructions[Op::LISTDEL] ) {
                                             update.nesting_level = getNestingLevel(update.call_path, criticalRegion.target_func);
+
+                                            if (update.nesting_level > 5) {
+                                                break;
+                                            }
+
                                             for (const auto& free_call_path_inst : free.call_path) {
                                                 if (update.operand_type_list == free.operand_type_list && update.operand_scope == free.operand_scope) {
                                                     bool isDominatedByFree = false;
@@ -800,13 +792,6 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
 
                             // REPORT GUARDED FPTR COPY
                             for (auto& use : storeInstructions[Op::FPTR_COPY]) {
-                                /*for (unsigned i = use.call_path.size()-1; i >=0; i--) {
-                                    if (use.call_path.at(i)->getFunction() == lock_call_path_inst->getFunction()) {
-                                        use.call_path.erase(use.call_path.begin(), use.call_path.begin()+i);
-                                        break;
-                                    }
-                                }*/
-
                                 bool dominatesUnlock = false;
 
                                 if (dominates(use.store_inst, unlock_call_path_inst, M, MAM)) {
@@ -832,13 +817,12 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
 
                             // REPORT GUARDED FPTR CALL
                             for (auto& use : callInstructions[Op::FPTR_CALL]) {
-                                /*for (unsigned i = use.call_path.size()-1; i >=0; i--) {
-                                    if (use.call_path.at(i)->getFunction() == lock_call_path_inst->getFunction()) {
-                                        use.call_path.erase(use.call_path.begin(), use.call_path.begin()+i);
-                                        break;
-                                    }
-                                }*/
                                 use.nesting_level = getNestingLevel(use.call_path, criticalRegion.target_func);
+                                
+                                if (use.nesting_level > 5) {
+                                    break;
+                                }
+
                                 bool dominatesUnlock = false;
 
                                 for (const auto& use_call_path_inst : use.call_path) {
@@ -921,8 +905,6 @@ PreservedAnalyses SyncPrimitivesPass::run(Module &M, ModuleAnalysisManager &MAM)
     buildCriticalRegions(M, MAM);
 
     unsigned reportedScuafGadgets = 0;
-    unsigned tmp_reportedScuafGadgets_1 = 0;
-    unsigned tmp_reportedScuafGadgets_2 = 0;
 
     // For every critical region build, ignore duplicate Free/Use Gadgets.
     // If a Free/Use Gadget pair is unique, match them based on operand type.
@@ -931,8 +913,7 @@ PreservedAnalyses SyncPrimitivesPass::run(Module &M, ModuleAnalysisManager &MAM)
     for (const auto& criticalRegion : criticalRegions) {
 
         unsigned uniqueFreeGadgets = 0;
-        unsigned uniqueUseFptrCallGadgets = 0;
-        unsigned uniqueUseFptrCopyGadgets = 0;
+        unsigned uniqueUseGadgets = 0;
 
         for (const auto& freeGadget : criticalRegion.free_gadgets) {
             bool isDuplicate = false;
@@ -959,30 +940,17 @@ PreservedAnalyses SyncPrimitivesPass::run(Module &M, ModuleAnalysisManager &MAM)
             }
 
             if (!isDuplicate) {
-                if (useGadget.report_class == REPORT_CLASS_FPTR_CALL) {
-                    uniqueUseFptrCallGadgets++;
-                } else if (useGadget.report_class == REPORT_CLASS_FPTR_COPY) {
-                    uniqueUseFptrCopyGadgets++;
-                }
-
+                uniqueUseGadgets++;
                 reportedUseGadgets.emplace_back(useGadget);
             }
         }
 
-        // This check makes sure that we have a Free gadget, Use gagdet and copy.
-
-        if (uniqueUseFptrCopyGadgets) {
-            reportedScuafGadgets += uniqueFreeGadgets * uniqueUseFptrCallGadgets;
-        }
-        tmp_reportedScuafGadgets_1 += uniqueFreeGadgets * uniqueUseFptrCallGadgets;
-        tmp_reportedScuafGadgets_2 += uniqueFreeGadgets * (uniqueUseFptrCallGadgets + uniqueUseFptrCopyGadgets);
+        reportedScuafGadgets += uniqueFreeGadgets * uniqueUseGadgets;
     }
 
     printCriticalRegionsInfo();
 
     errs() << "[!] Build completed!\n";
-    errs() << llvm::formatv("\ntest_tmp1: {0}\n", tmp_reportedScuafGadgets_1);
-    errs() << llvm::formatv("\ntest_tmp2: {0}\n", tmp_reportedScuafGadgets_2);
     errs() << llvm::formatv("\nFound: {0} SCUAF gadgets\n", reportedScuafGadgets);
 
     return PreservedAnalyses::all();

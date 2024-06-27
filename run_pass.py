@@ -123,6 +123,18 @@ def process_files(directory):
 
     return total_gadgets, lock_func_counts, unlock_func_counts
 
+def getLockStats(key, values_list):
+    lock_func_counts[key] = {"total": 0, "nesting_level": {}}
+    for value in values_list:
+        lock_func_counts[key]["total"] += lock_func_counts[value]["total"]
+        
+        for nesting_level in lock_func_counts[value]["nesting_level"]:
+            if nesting_level in lock_func_counts[key]["nesting_level"]:
+                lock_func_counts[key]["nesting_level"][nesting_level] += lock_func_counts[value]["nesting_level"][nesting_level]
+            else:
+                lock_func_counts[key]["nesting_level"][nesting_level] = lock_func_counts[value]["nesting_level"][nesting_level]
+
+
 if __name__ == '__main__':
     file_count = max(count_files(ll_dir), count_files(bc_dir))
 
@@ -137,14 +149,11 @@ if __name__ == '__main__':
 
     # Calculate the total number of SCUAF gadgets and lock function counts
     total_gadgets, lock_func_counts, unlock_func_counts = process_files(txt_dir)
-
-    mutex_func_counts = {}
-
-    lock_func_counts["mutex_count"] = lock_func_counts["mutex_lock"]["total"] + lock_func_counts["mutex_trylock"]["total"]
-    lock_func_counts["spin_lock_count"] = lock_func_counts["spin_lock"]["total"] + lock_func_counts["spin_trylock"]["total"]
-    lock_func_counts["rw_spin_lock_count"] = lock_func_counts["read_lock"]["total"] + lock_func_counts["read_trylock"]["total"] + lock_func_counts["write_lock"]["total"] + lock_func_counts["write_trylock"]["total"]
-    lock_func_counts["semaphore_count"] = lock_func_counts["down"]["total"]
-    lock_func_counts["rw_semaphore_count"] = lock_func_counts["down_read"]["total"] + lock_func_counts["down_write"]["total"]
+    getLockStats("mutex_count", ["mutex_lock", "mutex_trylock"])
+    getLockStats("spin_lock_count", ["spin_lock", "spin_trylock"])
+    getLockStats("rw_spin_lock_count", ["read_lock", "read_trylock", "write_lock", "write_trylock"])
+    getLockStats("semaphore_count", ["down"])
+    getLockStats("rw_semaphore_count", ["down_read", "down_write"])
     # Prepare the data to be saved
     data = {
         'linux_version': linux_version,
