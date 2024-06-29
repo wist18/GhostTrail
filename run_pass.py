@@ -23,7 +23,9 @@ stats_dir = 'stats.json'
 
 patterns = {
     'lock': ["spin_lock", "spin_trylock", "read_lock", "read_trylock", "write_lock", "write_trylock", "down_read", "down_write", "mutex_lock", "mutex_trylock", "down"],
-    'unlock': ["spin_unlock", "read_unlock", "write_unlock", "up_read", "up_write", "mutex_unlock", "up"]
+    'unlock': ["spin_unlock", "read_unlock", "write_unlock", "up_read", "up_write", "mutex_unlock", "up"],
+    'free': ["guarded_free", "guarded_free_null", "guarded_free_val", "guarded_free_list_del"],
+    'use': ["fptr_copy", "fptr_call"]
 }
 
 def run_task():
@@ -47,15 +49,22 @@ def extract_gadgets(line):
         return int(match.group(1))
     return 0
 
+# Function to extract the class of gadgets from a single line
+def extract_report_class(line):
+    report_class_match = re.search(r'\breport_class=(\w+)', line)
+    report_class = report_class_match.group(1) if report_class_match else None
+
+    return report_class
+
 # Function to extract lock function types from a single line
-def extract_lock_func(line):
-    lock_func_match = re.search(r'\block_func=(\w+)', line)
+def extract_lock_func(line, report_class):
+    func_match = re.search(rf'\b{report_class}_func=(\w+)', line)
     nesting_level_match = re.search(r'nesting_level=(\d+)', line)
     
-    lock_func = lock_func_match.group(1) if lock_func_match else None
+    func = func_match.group(1) if func_match else None
     nesting_level = int(nesting_level_match.group(1)) if nesting_level_match else None
     
-    return lock_func, nesting_level
+    return func, nesting_level
 
 # Function to extract unlock function types from a single line
 def extract_unlock_func(line):
@@ -100,12 +109,21 @@ def process_files(directory):
     total_gadgets = 0
     lock_func_counts = {'total': 0, 'nesting_level': {}, 'types': {}}
     unlock_func_counts = {'total': 0, 'nesting_level': {}, 'types': {}}
+    free_gadget_counts = {'total': 0, 'nesting_level': {}, 'types': {}}
+    use_gadget_counts = {'total': 0, 'nesting_level': {}, 'types': {}}
 
-    for key in patterns['lock']:
-        lock_func_counts[key] = {'total': 0, 'nesting_level': {}, 'types': {}}
+    for val in patterns['lock']:
+        lock_func_counts[val] = {'total': 0, 'nesting_level': {}, 'types': {}}
 
-    for key in patterns['unlock']:
-        unlock_func_counts[key] = {'total': 0, 'nesting_level': {}, 'types': {}}
+    for val in patterns['unlock']:
+        unlock_func_counts[val] = {'total': 0, 'nesting_level': {}, 'types': {}}
+
+    for val in patterns['free']:
+        free_gadget_counts[val] = {'total': 0, 'nesting_level': {}, 'types': {}}
+
+    for val in patterns['use']:
+        use_gadget_counts[val] = {'total': 0, 'nesting_level': {}, 'types': {}}
+        
 
     for root, _, files in os.walk(directory):
         for filename in files:
@@ -114,25 +132,32 @@ def process_files(directory):
                 with open(file_path, 'r') as file:
                     for line in file:
                         total_gadgets += extract_gadgets(line)
-                        
-                        lock_func, lock_nesting_level = extract_lock_func(line)
-                        update_func_counts(lock_func_counts, lock_func, patterns['lock'], lock_nesting_level)
 
-                        unlock_func, unlock_nesting_level = extract_unlock_func(line)
-                        update_func_counts(unlock_func_counts, unlock_func, patterns['unlock'], unlock_nesting_level)
+                        report_class = extract_report_class(line)
 
-    return total_gadgets, lock_func_counts, unlock_func_counts
+                        func, nesting_level = extract_lock_func(line, report_class)
 
-def getLockStats(key, values_list):
-    lock_func_counts[key] = {"total": 0, "nesting_level": {}}
+                        if (report_class == "lock"):
+                            update_func_counts(lock_func_counts, func, patterns[report_class], nesting_level)
+                        elif (report_class == "unlock"):
+                            update_func_counts(unlock_func_counts, func, patterns[report_class], nesting_level)
+                        elif (report_class in patterns['free']):
+                            update_func_counts(free_gadget_counts, report_class, [report_class], nesting_level)
+                        elif (report_class in patterns['use']):
+                            update_func_counts(use_gadget_counts, report_class, [report_class], nesting_level)
+
+    return total_gadgets, lock_func_counts, unlock_func_counts, free_gadget_counts, use_gadget_counts
+
+def getStats(dict, key, values_list):
+    dict[key] = {"total": 0, "nesting_level": {}}
     for value in values_list:
-        lock_func_counts[key]["total"] += lock_func_counts[value]["total"]
+        dict[key]["total"] += dict[value]["total"]
         
-        for nesting_level in lock_func_counts[value]["nesting_level"]:
-            if nesting_level in lock_func_counts[key]["nesting_level"]:
-                lock_func_counts[key]["nesting_level"][nesting_level] += lock_func_counts[value]["nesting_level"][nesting_level]
+        for nesting_level in dict[value]["nesting_level"]:
+            if nesting_level in dict[key]["nesting_level"]:
+                dict[key]["nesting_level"][nesting_level] += dict[value]["nesting_level"][nesting_level]
             else:
-                lock_func_counts[key]["nesting_level"][nesting_level] = lock_func_counts[value]["nesting_level"][nesting_level]
+                dict[key]["nesting_level"][nesting_level] = dict[value]["nesting_level"][nesting_level]
 
 
 if __name__ == '__main__':
@@ -148,12 +173,12 @@ if __name__ == '__main__':
             break
 
     # Calculate the total number of SCUAF gadgets and lock function counts
-    total_gadgets, lock_func_counts, unlock_func_counts = process_files(txt_dir)
-    getLockStats("mutex_count", ["mutex_lock", "mutex_trylock"])
-    getLockStats("spin_lock_count", ["spin_lock", "spin_trylock"])
-    getLockStats("rw_spin_lock_count", ["read_lock", "read_trylock", "write_lock", "write_trylock"])
-    getLockStats("semaphore_count", ["down"])
-    getLockStats("rw_semaphore_count", ["down_read", "down_write"])
+    total_gadgets, lock_func_counts, unlock_func_counts, free_gadget_counts, use_gadget_counts = process_files(txt_dir)
+    getStats(lock_func_counts, "mutex_count", ["mutex_lock", "mutex_trylock"])
+    getStats(lock_func_counts, "spin_lock_count", ["spin_lock", "spin_trylock"])
+    getStats(lock_func_counts, "rw_spin_lock_count", ["read_lock", "read_trylock", "write_lock", "write_trylock"])
+    getStats(lock_func_counts, "semaphore_count", ["down"])
+    getStats(lock_func_counts, "rw_semaphore_count", ["down_read", "down_write"])
     # Prepare the data to be saved
     data = {
         'linux_version': linux_version,
@@ -163,7 +188,9 @@ if __name__ == '__main__':
         'file_count': file_count, 
         'scuaf_gadgets': total_gadgets,
         'lock_func_counts': lock_func_counts,
-        'unlock_func_counts': unlock_func_counts
+        'unlock_func_counts': unlock_func_counts,
+        'free_gadgets': free_gadget_counts,
+        'use_gadgets': use_gadget_counts
     }
 
     # Save the data to a JSON file

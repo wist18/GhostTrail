@@ -169,42 +169,65 @@ tasks:
         llvm-project/build/bin/clang++ -fPIC -shared -o passes/syncprimitives.so passes/SyncPrimitives.cpp `llvm-project/build/bin/llvm-config --cxxflags --ldflags --system-libs --libs core support`
 
   run-pass:
-    desc: "Run LLVM pass on every .ll file in linux-${LINUX_VERSION}-ll and save the results"
+    desc: "Run LLVM pass on a single .ll file in linux-${LINUX_VERSION}-ll and save the result"
     cmds:
       - |
         if [ -d "linux-${LINUX_VERSION}-ll" ]; then
           LL_DIR="linux-${LINUX_VERSION}-ll"
           OUTPUT_DIR="passes-out"
-          find ./$LL_DIR -name '*.ll' | while read -r file; do
-            relative_path="${file#./$LL_DIR/}"
-            dir=$(dirname "$relative_path")
-            base=$(basename "$relative_path" .ll)
-            mkdir -p "$OUTPUT_DIR/$dir"
-            output_file="$OUTPUT_DIR/$dir/$base.txt"
+          
+          # Find the first .ll file
+          file=$(find ./$LL_DIR -name '*.ll' | head -n 1)
 
-            # Check if output file already exists
-            if [ -f "$output_file" ]; then
-              echo "Skipping $file, output already exists at $output_file"
-              continue
-            else
-              echo "[BUILDING] $output_file"
-            fi
+          if [ -z "$file" ]; then
+            echo "No .ll files found in $LL_DIR."
+            exit 0
+          fi
 
-            # Run the LLVM pass with timeout
-            timeout 10 llvm-project/build/bin/opt -debug-pass-manager -load-pass-plugin=./passes/syncprimitives.so -passes=sync-primitives -disable-output "$file" > "$output_file" 2>&1
+          relative_path="${file#./$LL_DIR/}"
+          dir=$(dirname "$relative_path")
+          base=$(basename "$relative_path" .ll)
+          mkdir -p "$OUTPUT_DIR/$dir"
+          output_file="$OUTPUT_DIR/$dir/$base.txt"
 
-            # Check the exit status of the LLVM pass
-            exit_status=$?
-
-            # Check if the process was killed due to OOM
-            if [ $exit_status -eq 137 ]; then
-              echo "Process was killed (likely due to OOM). Exiting."
-              exit 137
-            fi
-
-            # Remove the .ll file after processing
+          # Check if output file already exists
+          if [ -f "$output_file" ]; then
+            echo "Skipping $file, output already exists at $output_file"
             rm -f "$file"
-          done
+            return 1
+          else
+            echo "[BUILDING] $output_file"
+
+            # Initialize timeout variables
+            initial_timeout=1
+            max_retries=10
+            retries=0
+
+            while [ $retries -lt $max_retries ]; do
+              current_timeout=$((initial_timeout + retries))
+              echo "Running with timeout of ${current_timeout}s"
+
+              # Run the LLVM pass with timeout
+              timeout ${current_timeout}s llvm-project/build/bin/opt -debug-pass-manager -load-pass-plugin=./passes/syncprimitives.so -passes=sync-primitives -disable-output "$file" > "$output_file" 2>&1
+
+              if [ $? -eq 0 ]; then
+                # Process completed successfully
+                rm -f "$file"
+                return 1
+              else
+                echo "Processing of $file failed"
+                retries=$((retries + 1))
+              fi
+            done
+
+            if [ $retries -ge $max_retries ]; then
+              echo "Skipping $file after $max_retries timeouts"
+              rm -f "$file"
+              return 2
+            fi
+          fi
+          
         else
           echo "linux-${LINUX_VERSION}-ll directory does not exist. Please run the tasks to generate .ll files first."
         fi
+

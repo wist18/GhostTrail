@@ -444,6 +444,24 @@ std::vector<std::string> getOperandTypes(Value* operandValue) {
     return operandTypes;
 }
 
+unsigned getNestingLevel(std::vector<CallInst*> call_path, std::string target_func) {
+    unsigned nesting_level = 0;
+
+    for (const auto& call_path_inst : call_path) {
+        auto debugLoc = call_path_inst->getDebugLoc();
+
+        while (debugLoc) {
+            nesting_level++;
+            debugLoc = debugLoc.getInlinedAt();
+        }
+
+        if (call_path_inst->getFunction() && call_path_inst->getFunction()->hasName() && call_path_inst->getFunction()->getName().str() == target_func) {
+            nesting_level=0;
+        }
+    }
+
+    return nesting_level;
+}
 
 void handleDirectCallInst(CallInst* callInst, std::vector<CallInst*>call_path) {
     if (callInst && callInst->getCalledFunction() && callInst->getCalledFunction()->hasName()) {
@@ -499,12 +517,16 @@ void handleInirectCallInst(CallInst* callInst, std::vector<CallInst*>call_path) 
 void handleInst(Instruction* inst, std::vector<CallInst*>call_path = {}) {
 
     // Early exit for null pointers or unresolved indirect calls
-    if (!inst || call_path.size() > 8) {
+    if (!inst) {
         return;
     }
 
     if (auto *CI = dyn_cast<CallInst>(inst)) {
         call_path.emplace_back(CI);
+
+        if (getNestingLevel(call_path, "?") >= 3) {
+            return;
+        }
 
         if (CI->isIndirectCall()) {
             handleInirectCallInst(CI, call_path);
@@ -538,28 +560,6 @@ void handleInst(Instruction* inst, std::vector<CallInst*>call_path = {}) {
     }
 }
 
-unsigned getNestingLevel(std::vector<CallInst*> call_path, std::string target_func) {
-    unsigned nesting_level = 0;
-
-    for (const auto& call_path_inst : call_path) {
-        auto debugLoc = call_path_inst->getDebugLoc();
-
-        while (debugLoc) {
-            if (debugLoc.getLine()) {
-                nesting_level++;
-            }
-            
-            debugLoc = debugLoc.getInlinedAt();
-        }
-
-        if (call_path_inst->getFunction() && call_path_inst->getFunction()->hasName() && call_path_inst->getFunction()->getName().str() == target_func) {
-            nesting_level = 0;
-        }
-    }
-
-    return nesting_level;
-}
-
 void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
 
     while(!callInstructions[Op::LOCK].empty() && !callInstructions[Op::UNLOCK].empty()) {
@@ -571,10 +571,12 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
         for (const auto& lock_sync : callInstructions[Op::LOCK]) {
             bool dominates_other_locks = false;
             for (const auto& other_lock_sync : callInstructions[Op::LOCK]) {
-                for (const auto& lock_call_path_inst : lock_sync.call_path) {
-                    for (const auto& other_lock_call_path_inst : other_lock_sync.call_path) {
-                        if (dominates(lock_call_path_inst, other_lock_call_path_inst, M, MAM) || postdominates(other_lock_call_path_inst, lock_call_path_inst, M, MAM)) {
-                            dominates_other_locks = true;
+                if (lock_sync != other_lock_sync) {
+                    for (const auto& lock_call_path_inst : lock_sync.call_path) {
+                        for (const auto& other_lock_call_path_inst : other_lock_sync.call_path) {
+                            if (dominates(lock_call_path_inst, other_lock_call_path_inst, M, MAM) || postdominates(other_lock_call_path_inst, lock_call_path_inst, M, MAM)) {
+                                dominates_other_locks = true;
+                            }
                         }
                     }
                 }
@@ -641,10 +643,6 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                             for (auto& free : callInstructions[Op::FREE]) {
 
                                 free.nesting_level = getNestingLevel(free.call_path, criticalRegion.target_func);
-
-                                if (free.nesting_level > 5) {
-                                    break;
-                                }
 
                                 for (auto& free_call_path_inst : free.call_path) {
                                     if (dominates(lock_call_path_inst, free_call_path_inst, M, MAM) &&
@@ -748,10 +746,6 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                                         for (auto& update : callInstructions[Op::LISTDEL] ) {
                                             update.nesting_level = getNestingLevel(update.call_path, criticalRegion.target_func);
 
-                                            if (update.nesting_level > 5) {
-                                                break;
-                                            }
-
                                             for (const auto& free_call_path_inst : free.call_path) {
                                                 if (update.operand_type_list == free.operand_type_list && update.operand_scope == free.operand_scope) {
                                                     bool isDominatedByFree = false;
@@ -794,6 +788,8 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                             for (auto& use : storeInstructions[Op::FPTR_COPY]) {
                                 bool dominatesUnlock = false;
 
+                                use.nesting_level = getNestingLevel(use.call_path, criticalRegion.target_func);
+
                                 if (dominates(use.store_inst, unlock_call_path_inst, M, MAM)) {
                                     dominatesUnlock = true;
                                 } else {
@@ -818,10 +814,6 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                             // REPORT GUARDED FPTR CALL
                             for (auto& use : callInstructions[Op::FPTR_CALL]) {
                                 use.nesting_level = getNestingLevel(use.call_path, criticalRegion.target_func);
-                                
-                                if (use.nesting_level > 5) {
-                                    break;
-                                }
 
                                 bool dominatesUnlock = false;
 
@@ -843,12 +835,12 @@ void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
                             }
 
                             criticalRegions.emplace_back(criticalRegion);
-                            goto new_lock;
+                            goto new_unlock;
                         }
                     }
                 }
 
-                new_lock:
+                new_unlock:
                 continue;
             }
         }

@@ -64,6 +64,7 @@ struct StoreInstInfo {
     std::vector<std::string> operand_type_list;
     std::vector<llvm::CallInst*> call_path;
     std::string call_path_string;
+    unsigned nesting_level;
 
     void print(std::string report_class) const {
         if (store_inst) {
@@ -73,6 +74,11 @@ struct StoreInstInfo {
             errs() << llvm::formatv("{0}_call_path={1}", 
                     report_class,
                     call_path_string);
+            errs() << ", ";
+
+            errs() << llvm::formatv("{0}_nesting_level={1}", 
+                    report_class,
+                    nesting_level);
             errs() << ", ";
 
             std::string typesStr = "";
@@ -114,7 +120,6 @@ struct CallInstInfo {
                 call_path_string);
         errs() << ", ";
 
-        // 1 is deducted since every call isntruction will add 1 to the nesting level, but the samllest nesting level is 0
         errs() << llvm::formatv("{0}_nesting_level={1}", 
                     report_class,
                     nesting_level);
