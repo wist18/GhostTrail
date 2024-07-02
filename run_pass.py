@@ -111,6 +111,7 @@ def process_files(directory):
     unlock_func_counts = {'total': 0, 'nesting_level': {}, 'types': {}}
     free_gadget_counts = {'total': 0, 'nesting_level': {}, 'types': {}}
     use_gadget_counts = {'total': 0, 'nesting_level': {}, 'types': {}}
+    seen_lines = set()
 
     for val in patterns['lock']:
         lock_func_counts[val] = {'total': 0, 'nesting_level': {}, 'types': {}}
@@ -142,9 +143,16 @@ def process_files(directory):
                         elif (report_class == "unlock"):
                             update_func_counts(unlock_func_counts, func, patterns[report_class], nesting_level)
                         elif (report_class in patterns['free']):
+                            if line in seen_lines:
+                                continue  # Skip the line if it has been seen before
                             update_func_counts(free_gadget_counts, report_class, [report_class], nesting_level)
                         elif (report_class in patterns['use']):
+                            if line in seen_lines:
+                                continue  # Skip the line if it has been seen before
                             update_func_counts(use_gadget_counts, report_class, [report_class], nesting_level)
+
+                        # Only keep track of seen lines to remove duplicates for SCUAF gadgets. Duplicates for locks and unlocks can exist, sicne a lock can have multiple unlcoks associated with it and vice-versa.
+                        seen_lines.add(line)  # Mark the line as seen
 
     return total_gadgets, lock_func_counts, unlock_func_counts, free_gadget_counts, use_gadget_counts
 

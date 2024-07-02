@@ -524,7 +524,7 @@ void handleInst(Instruction* inst, std::vector<CallInst*>call_path = {}) {
     if (auto *CI = dyn_cast<CallInst>(inst)) {
         call_path.emplace_back(CI);
 
-        if (getNestingLevel(call_path, "?") >= 3) {
+        if (getNestingLevel(call_path, "?") > 3) {
             return;
         }
 
@@ -562,7 +562,7 @@ void handleInst(Instruction* inst, std::vector<CallInst*>call_path = {}) {
 
 void buildCriticalRegions(Module &M, ModuleAnalysisManager &MAM) {
 
-    while(!callInstructions[Op::LOCK].empty() && !callInstructions[Op::UNLOCK].empty()) {
+    while(!(callInstructions[Op::LOCK].empty() || callInstructions[Op::UNLOCK].empty())) {
         std::unordered_map<Op, std::vector<CallInstInfo>> reportedCallInstructions;
         std::unordered_map<Op, std::vector<StoreInstInfo>> reportedStoreInstructions;
 
