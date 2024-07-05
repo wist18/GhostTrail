@@ -194,38 +194,24 @@ tasks:
           if [ -f "$output_file" ]; then
             echo "Skipping $file, output already exists at $output_file"
             rm -f "$file"
-            return 1
           else
             echo "[BUILDING] $output_file"
 
-            # Initialize timeout variables
-            initial_timeout=1
-            max_retries=10
-            retries=0
-
-            while [ $retries -lt $max_retries ]; do
-              current_timeout=$((initial_timeout + retries))
-              echo "Running with timeout of ${current_timeout}s"
-
-              # Run the LLVM pass with timeout
-              timeout ${current_timeout}s llvm-project/build/bin/opt -debug-pass-manager -load-pass-plugin=./passes/syncprimitives.so -passes=sync-primitives -disable-output "$file" > "$output_file" 2>&1
+            # Run the LLVM pass until it succeeds
+            while true; do
+              llvm-project/build/bin/opt -debug-pass-manager -load-pass-plugin=./passes/syncprimitives.so -passes=sync-primitives -disable-output "$file" > "$output_file" 2>&1
 
               if [ $? -eq 0 ]; then
                 # Process completed successfully
                 rm -f "$file"
-                return 1
+                break
               else
-                echo "Processing of $file failed"
-                retries=$((retries + 1))
+                echo "Retrying $file..."
                 > "$output_file"
               fi
             done
 
-            if [ $retries -ge $max_retries ]; then
-              echo "Skipping $file after $max_retries timeouts"
-              rm -f "$file"
-              return 2
-            fi
+            return 1
           fi
           
         else
