@@ -3,6 +3,8 @@ import time
 import os
 import re
 import json
+import matplotlib.pyplot as plt
+from collections import defaultdict
 from dotenv import load_dotenv
 
 # Load the .env file
@@ -112,6 +114,7 @@ def process_files(directory):
     free_gadget_counts = {'total': 0, 'nesting_level': {}, 'types': {}}
     use_gadget_counts = {'total': 0, 'nesting_level': {}, 'types': {}}
     seen_lines = set()
+    component_lock_counts = defaultdict(int)
 
     for val in patterns['lock']:
         lock_func_counts[val] = {'total': 0, 'nesting_level': {}, 'types': {}}
@@ -130,9 +133,12 @@ def process_files(directory):
         for filename in files:
             if filename.endswith('.txt'):  # Assuming files have .txt extension
                 file_path = os.path.join(root, filename)
+                component = file_path.split('/')[1]  # Assumes linux-version/component/path/to/file
                 with open(file_path, 'r') as file:
                     for line in file:
                         total_gadgets += extract_gadgets(line)
+                        if line.startswith('[LOCK-INFO]'):
+                            component_lock_counts[component] += 1
 
                         report_class = extract_report_class(line)
 
@@ -154,7 +160,7 @@ def process_files(directory):
                         # Only keep track of seen lines to remove duplicates for SCUAF gadgets. Duplicates for locks and unlocks can exist, sicne a lock can have multiple unlcoks associated with it and vice-versa.
                         seen_lines.add(line)  # Mark the line as seen
 
-    return total_gadgets, lock_func_counts, unlock_func_counts, free_gadget_counts, use_gadget_counts
+    return total_gadgets, lock_func_counts, unlock_func_counts, free_gadget_counts, use_gadget_counts, component_lock_counts
 
 def getStats(dict, key, values_list):
     dict[key] = {"total": 0, "nesting_level": {}}
@@ -181,7 +187,7 @@ if __name__ == '__main__':
             break
 
     # Calculate the total number of SCUAF gadgets and lock function counts
-    total_gadgets, lock_func_counts, unlock_func_counts, free_gadget_counts, use_gadget_counts = process_files(txt_dir)
+    total_gadgets, lock_func_counts, unlock_func_counts, free_gadget_counts, use_gadget_counts, component_lock_counts = process_files(txt_dir)
     getStats(lock_func_counts, "mutex_count", ["mutex_lock", "mutex_trylock"])
     getStats(lock_func_counts, "spin_lock_count", ["spin_lock", "spin_trylock"])
     getStats(lock_func_counts, "rw_spin_lock_count", ["read_lock", "read_trylock", "write_lock", "write_trylock"])
@@ -198,7 +204,8 @@ if __name__ == '__main__':
         'lock_func_counts': lock_func_counts,
         'unlock_func_counts': unlock_func_counts,
         'free_gadgets': free_gadget_counts,
-        'use_gadgets': use_gadget_counts
+        'use_gadgets': use_gadget_counts,
+        'component_lock_counts': component_lock_counts
     }
 
     # Save the data to a JSON file
@@ -206,3 +213,27 @@ if __name__ == '__main__':
         json.dump(data, f, indent=4)
 
     print(f'Total SCUAF gadgets found: {total_gadgets}')
+
+    # Sort the components by number of locks in descending order
+    sorted_component_lock_counts = dict(sorted(component_lock_counts.items(), key=lambda item: item[1], reverse=True))
+
+    # Plot the number of locks for each Linux component
+    components = list(sorted_component_lock_counts.keys())
+    counts = list(sorted_component_lock_counts.values())
+
+    plt.figure(figsize=(9, 6))
+    bars = plt.barh(components, counts, color='blue')
+    plt.ylabel('Linux Component', fontsize=12)
+    plt.xlabel('Number of SRCs', fontsize=12)
+    #plt.title('Number of SRCs per Linux Component', fontsize=14)
+    plt.yticks(rotation=0, fontsize=10)
+    plt.xticks(fontsize=10)
+
+    # Add value labels on the bars with adjusted font size
+    for bar in bars:
+        width = bar.get_width()
+        plt.text(width, bar.get_y() + bar.get_height() / 2.0, f'{width}', ha='left', va='center', fontsize=10)
+
+    plt.tight_layout()
+    plt.savefig('locks_per_component.png')
+    plt.show()

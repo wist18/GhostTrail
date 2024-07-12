@@ -344,5 +344,17 @@
                 "fptr_call": 794
             }
         }
+    },
+    "component_lock_counts": {
+        "lib": 1,
+        "io_uring": 27,
+        "drivers": 1366,
+        "net": 112,
+        "kernel": 143,
+        "block": 6,
+        "security": 1,
+        "sound": 483,
+        "fs": 117,
+        "arch": 1
     }
 }
