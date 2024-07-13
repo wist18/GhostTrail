@@ -235,5 +235,5 @@ if __name__ == '__main__':
         plt.text(width, bar.get_y() + bar.get_height() / 2.0, f'{width}', ha='left', va='center', fontsize=10)
 
     plt.tight_layout()
-    plt.savefig('locks_per_component.png')
+    plt.savefig('src_per_component.png')
     plt.show()
