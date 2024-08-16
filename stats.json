@@ -3,47 +3,24 @@
     "bc_dir": "linux-6.9.1-bc",
     "ll_dir": "linux-6.9.1-ll",
     "txt_dir": "passes-out",
-    "file_count": 23804,
-    "scuaf_gadgets": 6066,
+    "file_count": 474,
+    "scuaf_gadgets": 6,
     "lock_func_counts": {
-        "total": 2257,
+        "total": 28,
         "nesting_level": {
-            "0": 2225,
-            "2": 19,
-            "1": 13
+            "0": 28
         },
         "types": {
-            "mutex_lock_nested": 1443,
-            "_raw_spin_lock": 48,
-            "_raw_spin_lock_irqsave": 81,
-            "down_read": 7,
-            "down_write": 146,
-            "mutex_lock_interruptible_nested": 445,
-            "down_read_interruptible": 1,
-            "down_write_killable": 1,
-            "down_interruptible": 1,
-            "_raw_write_lock_irqsave": 1,
-            "_raw_read_lock": 3,
-            "down_trylock": 1,
-            "_raw_spin_lock_bh": 28,
-            "_raw_spin_lock_irq": 6,
-            "_raw_write_lock_irq": 1,
-            "down_read_killable": 1,
-            "_raw_spin_lock_nested": 1,
-            "down_read_nested": 42
+            "mutex_lock_nested": 27,
+            "_raw_spin_lock": 1
         },
         "spin_lock": {
-            "total": 164,
+            "total": 1,
             "nesting_level": {
-                "0": 157,
-                "2": 7
+                "0": 1
             },
             "types": {
-                "_raw_spin_lock": 48,
-                "_raw_spin_lock_irqsave": 81,
-                "_raw_spin_lock_bh": 28,
-                "_raw_spin_lock_irq": 6,
-                "_raw_spin_lock_nested": 1
+                "_raw_spin_lock": 1
             }
         },
         "spin_trylock": {
@@ -52,13 +29,9 @@
             "types": {}
         },
         "read_lock": {
-            "total": 3,
-            "nesting_level": {
-                "0": 3
-            },
-            "types": {
-                "_raw_read_lock": 3
-            }
+            "total": 0,
+            "nesting_level": {},
+            "types": {}
         },
         "read_trylock": {
             "total": 0,
@@ -66,15 +39,9 @@
             "types": {}
         },
         "write_lock": {
-            "total": 2,
-            "nesting_level": {
-                "0": 1,
-                "1": 1
-            },
-            "types": {
-                "_raw_write_lock_irqsave": 1,
-                "_raw_write_lock_irq": 1
-            }
+            "total": 0,
+            "nesting_level": {},
+            "types": {}
         },
         "write_trylock": {
             "total": 0,
@@ -82,38 +49,22 @@
             "types": {}
         },
         "down_read": {
-            "total": 51,
-            "nesting_level": {
-                "0": 51
-            },
-            "types": {
-                "down_read": 7,
-                "down_read_interruptible": 1,
-                "down_read_killable": 1,
-                "down_read_nested": 42
-            }
+            "total": 0,
+            "nesting_level": {},
+            "types": {}
         },
         "down_write": {
-            "total": 147,
-            "nesting_level": {
-                "0": 143,
-                "2": 4
-            },
-            "types": {
-                "down_write": 146,
-                "down_write_killable": 1
-            }
+            "total": 0,
+            "nesting_level": {},
+            "types": {}
         },
         "mutex_lock": {
-            "total": 1888,
+            "total": 27,
             "nesting_level": {
-                "0": 1868,
-                "2": 8,
-                "1": 12
+                "0": 27
             },
             "types": {
-                "mutex_lock_nested": 1443,
-                "mutex_lock_interruptible_nested": 445
+                "mutex_lock_nested": 27
             }
         },
         "mutex_trylock": {
@@ -122,186 +73,116 @@
             "types": {}
         },
         "down": {
-            "total": 2,
-            "nesting_level": {
-                "0": 2
-            },
-            "types": {
-                "down_interruptible": 1,
-                "down_trylock": 1
-            }
+            "total": 0,
+            "nesting_level": {},
+            "types": {}
         },
         "mutex_count": {
-            "total": 1888,
+            "total": 27,
             "nesting_level": {
-                "0": 1868,
-                "2": 8,
-                "1": 12
+                "0": 27
             }
         },
         "spin_lock_count": {
-            "total": 164,
+            "total": 1,
             "nesting_level": {
-                "0": 157,
-                "2": 7
+                "0": 1
             }
         },
         "rw_spin_lock_count": {
-            "total": 5,
-            "nesting_level": {
-                "0": 4,
-                "1": 1
-            }
+            "total": 0,
+            "nesting_level": {}
         },
         "semaphore_count": {
-            "total": 2,
-            "nesting_level": {
-                "0": 2
-            }
+            "total": 0,
+            "nesting_level": {}
         },
         "rw_semaphore_count": {
-            "total": 198,
-            "nesting_level": {
-                "0": 194,
-                "2": 4
-            }
+            "total": 0,
+            "nesting_level": {}
         }
     },
     "unlock_func_counts": {
-        "total": 2257,
+        "total": 28,
         "nesting_level": {
-            "0": 2231,
-            "2": 14,
-            "1": 12
+            "0": 28
         },
         "types": {
-            "mutex_unlock": 1891,
-            "_raw_spin_unlock": 44,
-            "_raw_spin_unlock_irqrestore": 84,
-            "up_read": 53,
-            "up_write": 144,
-            "up": 2,
-            "_raw_write_unlock_irqrestore": 1,
-            "_raw_read_unlock": 3,
-            "_raw_spin_unlock_bh": 28,
-            "_raw_spin_unlock_irq": 6,
-            "_raw_write_unlock_irq": 1
+            "mutex_unlock": 27,
+            "_raw_spin_unlock": 1
         },
         "spin_unlock": {
-            "total": 162,
+            "total": 1,
             "nesting_level": {
-                "0": 160,
-                "2": 2
+                "0": 1
             },
             "types": {
-                "_raw_spin_unlock": 44,
-                "_raw_spin_unlock_irqrestore": 84,
-                "_raw_spin_unlock_bh": 28,
-                "_raw_spin_unlock_irq": 6
+                "_raw_spin_unlock": 1
             }
         },
         "read_unlock": {
-            "total": 3,
-            "nesting_level": {
-                "0": 3
-            },
-            "types": {
-                "_raw_read_unlock": 3
-            }
+            "total": 0,
+            "nesting_level": {},
+            "types": {}
         },
         "write_unlock": {
-            "total": 2,
-            "nesting_level": {
-                "0": 2
-            },
-            "types": {
-                "_raw_write_unlock_irqrestore": 1,
-                "_raw_write_unlock_irq": 1
-            }
+            "total": 0,
+            "nesting_level": {},
+            "types": {}
         },
         "up_read": {
-            "total": 53,
-            "nesting_level": {
-                "0": 53
-            },
-            "types": {
-                "up_read": 53
-            }
+            "total": 0,
+            "nesting_level": {},
+            "types": {}
         },
         "up_write": {
-            "total": 144,
-            "nesting_level": {
-                "0": 140,
-                "2": 4
-            },
-            "types": {
-                "up_write": 144
-            }
+            "total": 0,
+            "nesting_level": {},
+            "types": {}
         },
         "mutex_unlock": {
-            "total": 1891,
+            "total": 27,
             "nesting_level": {
-                "0": 1871,
-                "2": 8,
-                "1": 12
+                "0": 27
             },
             "types": {
-                "mutex_unlock": 1891
+                "mutex_unlock": 27
             }
         },
         "up": {
-            "total": 2,
-            "nesting_level": {
-                "0": 2
-            },
-            "types": {
-                "up": 2
-            }
+            "total": 0,
+            "nesting_level": {},
+            "types": {}
         }
     },
     "free_gadgets": {
-        "total": 1405,
+        "total": 6,
         "nesting_level": {
-            "1": 517,
-            "2": 637,
-            "0": 251
+            "1": 2,
+            "2": 4
         },
         "types": {
-            "guarded_free": 989,
-            "guarded_free_val": 355,
-            "guarded_free_null": 61
+            "guarded_free": 6
         },
         "guarded_free": {
-            "total": 989,
+            "total": 6,
             "nesting_level": {
-                "1": 433,
-                "2": 331,
-                "0": 225
+                "1": 2,
+                "2": 4
             },
             "types": {
-                "guarded_free": 989
+                "guarded_free": 6
             }
         },
         "guarded_free_null": {
-            "total": 61,
-            "nesting_level": {
-                "1": 54,
-                "2": 7
-            },
-            "types": {
-                "guarded_free_null": 61
-            }
+            "total": 0,
+            "nesting_level": {},
+            "types": {}
         },
         "guarded_free_val": {
-            "total": 355,
-            "nesting_level": {
-                "2": 299,
-                "0": 26,
-                "1": 30
-            },
-            "types": {
-                "guarded_free_val": 355
-            }
+            "total": 0,
+            "nesting_level": {},
+            "types": {}
         },
         "guarded_free_list_del": {
             "total": 0,
@@ -310,51 +191,36 @@
         }
     },
     "use_gadgets": {
-        "total": 1262,
+        "total": 5,
         "nesting_level": {
-            "0": 490,
-            "2": 296,
-            "1": 461,
-            "3": 15
+            "0": 4,
+            "2": 1
         },
         "types": {
-            "fptr_copy": 468,
-            "fptr_call": 794
+            "fptr_copy": 4,
+            "fptr_call": 1
         },
         "fptr_copy": {
-            "total": 468,
+            "total": 4,
             "nesting_level": {
-                "0": 267,
-                "2": 67,
-                "1": 119,
-                "3": 15
+                "0": 4
             },
             "types": {
-                "fptr_copy": 468
+                "fptr_copy": 4
             }
         },
         "fptr_call": {
-            "total": 794,
+            "total": 1,
             "nesting_level": {
-                "2": 229,
-                "1": 342,
-                "0": 223
+                "2": 1
             },
             "types": {
-                "fptr_call": 794
+                "fptr_call": 1
             }
         }
     },
     "component_lock_counts": {
         "lib": 1,
-        "io_uring": 27,
-        "drivers": 1366,
-        "net": 112,
-        "kernel": 143,
-        "block": 6,
-        "security": 1,
-        "sound": 483,
-        "fs": 117,
-        "arch": 1
+        "io_uring": 27
     }
 }

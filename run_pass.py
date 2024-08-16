@@ -175,7 +175,7 @@ def getStats(dict, key, values_list):
 
 
 if __name__ == '__main__':
-    file_count = max(count_files(ll_dir), count_files(bc_dir))
+    file_count = min(count_files(ll_dir), count_files(bc_dir))
 
     while True:
         status = run_task()
