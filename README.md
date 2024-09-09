@@ -65,7 +65,7 @@ To generate `.ll` files from the bytecode, run:
 task gen-linux-ll
 ```
 
-## Build and Run LLVM Passes
+## Build and Run LLVM Passes (Work in Progress, but if you followed until now, you should have the target code into bitcode and LLVM-IR formats)
 
 > **⚠️ Important Warning:**
 >
